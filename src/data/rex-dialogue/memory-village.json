@@ -1,0 +1,85 @@
+{
+  "region": "memory-village",
+  "name": "Memory Village",
+  "intro": [
+    "Welcome to Memory Village. I feel it hum.",
+    "Every box here can hold one thing.",
+    "This village runs on keys and values."
+  ],
+  "hints": {
+    "1": [
+      "The air feels... crystalline here.",
+      "Something hums near the well.",
+      "Your inventory feels light.",
+      "The boxes wait for a name.",
+      "A faint glow comes from the vault."
+    ],
+    "2": [
+      "Memories fade unless anchored.",
+      "A label holds a memory in place.",
+      "Storing a value needs a key.",
+      "A name and a thing. That is the trick.",
+      "What you set, you can get back."
+    ],
+    "3": [
+      "Try: SET <key> <value>",
+      "Try: GET <key>",
+      "Try: INCR <counter>",
+      "Try: EXPIRE <key> <seconds>",
+      "Try: TTL <key>"
+    ],
+    "4": [
+      "SET player_name \"Alex\"",
+      "GET player_name",
+      "INCR visits",
+      "EXPIRE torch 30",
+      "TTL torch"
+    ]
+  },
+  "reactions": {
+    "ok": [
+      "A crystal forms. It feels solid.",
+      "The village accepts that one.",
+      "Your memory crystal glows.",
+      "Stored. I can see it now."
+    ],
+    "okFirst": [
+      "Your first store. That is the heart of it.",
+      "A box, a label, a value. You did it.",
+      "Welcome to the art of SET."
+    ],
+    "error": [
+      "The vault did not take that.",
+      "That key is not here yet.",
+      "A misfire, but the village forgives."
+    ],
+    "expired": [
+      "Your crystal faded — it had a timer!",
+      "The torch went dark. Time won.",
+      "A key just expired into the void."
+    ]
+  },
+  "personality": {
+    "curiosity": [
+      "What lives inside that box?",
+      "I wonder what you will name next.",
+      "Each key is a small story.",
+      "Try storing something of yours."
+    ],
+    "humor": [
+      "That key has more lives than a cat.",
+      "I count keys while I wait. Exciting, I know.",
+      "Even memory needs a nap now and then."
+    ],
+    "wisdom": [
+      "A clear name is half the craft.",
+      "Name keys like you will read them later.",
+      "Set once, read many times."
+    ],
+    "sternness": [
+      "A label means nothing without a value.",
+      "Stop guessing. Type the shape I showed you.",
+      "The vault will not open to a blank key."
+    ]
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "region": "leaderboard-arena",
+  "name": "Leaderboard Arena",
+  "intro": [
+    "The crowd roars for whoever ranks top.",
+    "Every player here carries a score.",
+    "In this arena, scores decide the order."
+  ],
+  "hints": {
+    "1": [
+      "A board of names climbs and falls.",
+      "Every name here holds a number.",
+      "The arena loves a ranking.",
+      "Watch the board as you work."
+    ],
+    "2": [
+      "A sorted set ranks members by score.",
+      "Each member has a score.",
+      "You add a member with a score.",
+      "You read the board in order."
+    ],
+    "3": [
+      "Try: ZADD <key> <score> <member>",
+      "Try: ZINCRBY <key> <amount> <member>",
+      "Try: ZRANGE <key> 0 -1",
+      "Try: ZSCORE <key> <member>"
+    ],
+    "4": [
+      "ZADD arena 100 \"Alex\"",
+      "ZINCRBY arena 50 \"Alex\"",
+      "ZRANGE arena 0 -1",
+      "ZRANGE arena 0 -1 REV"
+    ]
+  },
+  "reactions": {
+    "ok": [
+      "A name climbs the board.",
+      "The score updates. The crowd cheers.",
+      "Ranked. Order holds."
+    ],
+    "error": [
+      "That score did not take.",
+      "The board ignores that.",
+      "No such member up there."
+    ]
+  },
+  "personality": {
+    "curiosity": [
+      "Who is winning right now?",
+      "One more point changes everything.",
+      "Watch the order shift as scores change."
+    ],
+    "humor": [
+      "Everyone loves a good ranking fight.",
+      "Second place is just first to lose.",
+      "The board has no mercy. Neither do I."
+    ],
+    "wisdom": [
+      "Scores give order. Order gives rank.",
+      "A tiny raise can leapfrog a rival.",
+      "Read the board before you bet."
+    ],
+    "sternness": [
+      "Scores first. Then we talk.",
+      "No score, no rank. That is the law.",
+      "ZADD takes a number. Give it one."
+    ]
+  }
+}

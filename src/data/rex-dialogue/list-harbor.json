@@ -1,0 +1,69 @@
+{
+  "region": "list-harbor",
+  "name": "List Harbor",
+  "intro": [
+    "Crates move on belts here, one after another.",
+    "A queue is a line of things. This harbor loves lines.",
+    "Welcome to List Harbor. Order matters."
+  ],
+  "hints": {
+    "1": [
+      "Crates slide in from both ends.",
+      "The belt is a line of waiting items.",
+      "Things go in, and things come out.",
+      "One side is left. One side is right."
+    ],
+    "2": [
+      "A list keeps things in order.",
+      "You push into a list at one end.",
+      "You pop out of a list at an end.",
+      "Lists are lines, and lines have order."
+    ],
+    "3": [
+      "Try: LPUSH <key> <value>",
+      "Try: RPUSH <key> <value>",
+      "Try: LRANGE <key> 0 -1",
+      "Try: LPOP <key>"
+    ],
+    "4": [
+      "LPUSH enemies \"Goblin\"",
+      "RPUSH enemies \"Dragon\"",
+      "LRANGE enemies 0 -1",
+      "LPOP enemies"
+    ]
+  },
+  "reactions": {
+    "ok": [
+      "A crate slides into place.",
+      "The belt shifts. Order restored.",
+      "The queue lines up nicely."
+    ],
+    "error": [
+      "That crate does not fit there.",
+      "The harbor rejects that load.",
+      "No slot for that, friend."
+    ]
+  },
+  "personality": {
+    "curiosity": [
+      "Who is first in line?",
+      "What else could ride this belt?",
+      "Push more and watch the line grow."
+    ],
+    "humor": [
+      "This queue moves faster than city traffic.",
+      "Left, right... the belt has no favorites.",
+      "Even a dragon waits its turn here."
+    ],
+    "wisdom": [
+      "Order is the whole game in a list.",
+      "First in, first out. Or last in, first out.",
+      "Push and pop, and the line obeys you."
+    ],
+    "sternness": [
+      "Pick a side. Left or right.",
+      "A queue is not a pile. Respect it.",
+      "No shoving on the belt."
+    ]
+  }
+}
