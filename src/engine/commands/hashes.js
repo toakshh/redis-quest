@@ -266,6 +266,66 @@ export const HSETNX = cmd({
   return integerReply(1)
 })
 
+export const HSCAN = cmd({
+  arity: -3,
+  syntax: 'HSCAN key cursor [MATCH pattern] [COUNT count]',
+  summary: 'Incrementally iterate over hash fields and associated values.',
+  group: 'hashes',
+  examples: ['HSCAN user:1 0', 'HSCAN user:1 0 MATCH name* COUNT 10'],
+})((engine, args) => scanDict(engine, args))
+
+function scanDict(engine, args) {
+  const [, key, cursorStr, ...rest] = args
+  const cursor = intValue(cursorStr)
+  if (cursor === null) return invalidInt(cursorStr)
+
+  const entry = engine._get(key)
+  if (!entry) return arrayReply([integerReply(0), emptyArrayReply()])
+  if (entry.type !== 'hash') return wrongType()
+
+  let pattern = null
+  let count = 10
+  for (let i = 0; i < rest.length; i++) {
+    const arg = rest[i].toUpperCase()
+    if (arg === 'MATCH' && i + 1 < rest.length) {
+      pattern = globToRegex(rest[++i])
+    } else if (arg === 'COUNT' && i + 1 < rest.length) {
+      count = intValue(rest[++i])
+      if (count === null || count <= 0) count = 10
+    }
+  }
+
+  const entries = [...entry.value.entries()]
+  if (pattern) {
+    const filtered = []
+    for (const [field, value] of entries) {
+      if (pattern.test(field)) filtered.push([field, value])
+    }
+    return buildScanReply(filtered, cursor, count)
+  }
+  return buildScanReply(entries, cursor, count)
+}
+
+function globToRegex(glob) {
+  const escaped = glob
+    .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.')
+  return new RegExp(`^${escaped}$`)
+}
+
+function buildScanReply(entries, cursor, count) {
+  const start = cursor
+  const end = Math.min(start + count, entries.length)
+  const batch = entries.slice(start, end)
+  const out = []
+  for (const [field, value] of batch) {
+    out.push(bulkReply(field), bulkReply(value))
+  }
+  const nextCursor = end >= entries.length ? 0 : end
+  return arrayReply([integerReply(nextCursor), arrayReply(out)])
+}
+
 function parseFloatArg(arg) {
   if (typeof arg !== 'string' || arg === '') return null
   const n = Number(arg)

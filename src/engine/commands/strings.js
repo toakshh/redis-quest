@@ -268,3 +268,132 @@ export const MSET = cmd({
 })
 
 // keep named export unused-silent for the strings group
+
+export const GETRANGE = cmd({
+  arity: 4,
+  syntax: 'GETRANGE key start end',
+  summary: 'Get a substring of the string stored at a key (inclusive range, negative from end).',
+  group: 'strings',
+  examples: ['GETRANGE name 0 3'],
+})((engine, args) => {
+  const [, key, startStr, endStr] = args
+  const start = intValue(startStr)
+  const end = intValue(endStr)
+  if (start === null || end === null) return invalidInt(start === null ? startStr : endStr)
+
+  const entry = engine._get(key)
+  if (!entry) return bulkReply('')
+  if (entry.type !== 'string') return wrongType()
+
+  const str = entry.value
+  let startIdx = start
+  let endIdx = end
+  if (startIdx < 0) startIdx = str.length + startIdx
+  if (endIdx < 0) endIdx = str.length + endIdx
+  if (startIdx < 0) startIdx = 0
+  if (endIdx >= str.length) endIdx = str.length - 1
+  if (startIdx > endIdx || startIdx >= str.length) return bulkReply('')
+
+  return bulkReply(str.slice(startIdx, endIdx + 1))
+})
+
+export const SETRANGE = cmd({
+  arity: 4,
+  syntax: 'SETRANGE key offset value',
+  summary: 'Overwrite part of a string at key starting at the specified offset.',
+  group: 'strings',
+  examples: ['SETRANGE message 0 "Hello"'],
+})((engine, args) => {
+  const [, key, offsetStr, value] = args
+  const offset = intValue(offsetStr)
+  if (offset === null) return invalidInt(offsetStr)
+  if (offset < 0) return errorReply('ERR value is out of range, must be positive')
+
+  const { entry, wrongType: wt } = engine._entryForWrite(key, 'string')
+  if (wt) return wrongType()
+
+  let str = entry.value || ''
+  const valStr = String(value)
+
+  // Pad with null bytes if offset is beyond current length
+  if (offset > str.length) {
+    str += '\x00'.repeat(offset - str.length)
+  }
+
+  const before = str.slice(0, offset)
+  const after = str.slice(offset + valStr.length)
+  entry.value = before + valStr + after
+  engine._clearTtl(entry)
+  engine._bump(key, entry)
+  engine.emit('change')
+  return integerReply(entry.value.length)
+})
+
+export const INCRBYFLOAT = cmd({
+  arity: 3,
+  syntax: 'INCRBYFLOAT key increment',
+  summary: 'Increment the float value of a key by the given amount.',
+  group: 'strings',
+  examples: ['INCRBYFLOAT score 0.5'],
+})((engine, args) => {
+  const [, key, increment] = args
+  const inc = parseFloatArg(increment)
+  if (inc === null) return invalidFloat(increment)
+
+  const { entry, wrongType: wt, created } = engine._entryForWrite(key, 'string')
+  if (wt) return wrongType()
+
+  let base = 0
+  if (!created) {
+    const parsed = parseFloatArg(entry.value)
+    if (parsed === null) return errorReply('ERR value is not a valid float')
+    base = parsed
+  }
+
+  const result = base + inc
+  if (!Number.isFinite(result)) {
+    return errorReply('ERR increment would produce NaN or Infinity')
+  }
+
+  const formatted = formatFloat(result)
+  entry.value = formatted
+  engine._clearTtl(entry)
+  engine._bump(key, entry)
+  engine.emit('change')
+  return bulkReply(formatted)
+})
+
+function parseFloatArg(arg) {
+  if (typeof arg !== 'string' || arg === '') return null
+  const n = Number(arg)
+  return Number.isNaN(n) ? null : n
+}
+
+// Format a float the way redis ld2string does in human mode (%.17Lf with
+// trailing zeros trimmed). We round to 15 significant digits first because JS
+// computes in IEEE doubles while redis uses long doubles, so naive sums like
+// 0.1 + 0.2 would otherwise print their binary noise (…004).
+function formatFloat(value) {
+  const rounded = Number(value.toPrecision(15))
+  let s = rounded.toString()
+  // toString() falls back to exponent notation outside ~1e-6..1e21; expand it.
+  if (s.indexOf('e') !== -1) s = expandExponent(s)
+  return s
+}
+
+function expandExponent(s) {
+  const [mantissa, expStr] = s.split('e')
+  const exp = parseInt(expStr, 10)
+  const neg = mantissa.startsWith('-')
+  const digits = neg ? mantissa.slice(1) : mantissa
+  const [intPart, fracPart = ''] = digits.split('.')
+  const point = intPart.length + exp
+  const all = intPart + fracPart
+  if (point <= 0) {
+    return (neg ? '-0.' : '0.') + '0'.repeat(-point) + all
+  }
+  if (point >= all.length) {
+    return (neg ? '-' : '') + all + '0'.repeat(point - all.length)
+  }
+  return (neg ? '-' : '') + all.slice(0, point) + '.' + all.slice(point)
+}

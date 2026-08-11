@@ -312,3 +312,93 @@ export const RPOPLPUSH = cmd({
   engine.emit('change')
   return bulkReply(value)
 })
+
+export const LINSERT = cmd({
+  arity: 5,
+  syntax: 'LINSERT key BEFORE|AFTER pivot value',
+  summary: 'Insert an element before or after another element in a list.',
+  group: 'lists',
+  examples: ['LINSERT queue BEFORE "job 2" "urgent"'],
+})((engine, args) => {
+  const [, key, where, pivot, value] = args
+  const entry = engine._get(key)
+  if (!entry) return integerReply(0)
+  if (entry.type !== 'list') return wrongType()
+
+  const direction = where.toUpperCase()
+  if (direction !== 'BEFORE' && direction !== 'AFTER') {
+    return errorReply("ERR syntax error")
+  }
+
+  const list = entry.value
+  let inserted = false
+  for (const node of list) {
+    if (node.value === pivot) {
+      const newNode = { value: String(value), prev: null, next: null }
+      if (direction === 'BEFORE') {
+        list.insertBefore(node, newNode)
+      } else {
+        list.insertAfter(node, newNode)
+      }
+      inserted = true
+      break
+    }
+  }
+
+  if (!inserted) return integerReply(-1)
+
+  engine._bump(key, entry)
+  engine.emit('change')
+  return integerReply(list.length)
+})
+
+export const BLPOP = cmd({
+  arity: -3,
+  syntax: 'BLPOP key [key ...] timeout',
+  summary: 'Remove and get the first element in a list, or block until one is available.',
+  group: 'lists',
+  examples: ['BLPOP queue 0'],
+})((engine, args) => blockingPop(engine, args, 'LPOP'))
+
+export const BRPOP = cmd({
+  arity: -3,
+  syntax: 'BRPOP key [key ...] timeout',
+  summary: 'Remove and get the last element in a list, or block until one is available.',
+  group: 'lists',
+  examples: ['BRPOP queue 0'],
+})((engine, args) => blockingPop(engine, args, 'RPOP'))
+
+function blockingPop(engine, args, popCommand) {
+  // In our synchronous mock, we don't truly block. We just try each key in order
+  // and return the first non-empty result (like a non-blocking pop with timeout=0).
+  // The last argument is the timeout, but we ignore it for now.
+  const keys = args.slice(1, -1)
+  const timeout = args[args.length - 1] // unused in mock
+
+  for (const key of keys) {
+    const entry = engine._get(key)
+    if (entry && entry.type === 'list' && entry.value.length > 0) {
+      // Found a non-empty list - perform the pop
+      if (popCommand === 'LPOP') {
+        const value = entry.value.popFront()
+        if (value === null) continue
+        if (entry.value.length === 0) engine._delete(key)
+        else engine._bump(key, entry)
+        engine.emit('change')
+        return arrayReply([bulkReply(key), bulkReply(value)])
+      } else {
+        const value = entry.value.popBack()
+        if (value === null) continue
+        if (entry.value.length === 0) engine._delete(key)
+        else engine._bump(key, entry)
+        engine.emit('change')
+        return arrayReply([bulkReply(key), bulkReply(value)])
+      }
+    }
+  }
+
+  // No elements available - in real Redis this would block, but we return nil
+  return nilReply()
+}
+
+// Add iterator support to LinkedList for LINSERT

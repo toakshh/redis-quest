@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createEngine } from '../engine/engine.js'
-import { useGameStore } from '../store/gameStore.js'
+import { useGameStore, ACHIEVEMENTS } from '../store/gameStore.js'
 import BossBattle from './BossBattle.jsx'
 import Achievements from './Achievements.jsx'
 
@@ -99,7 +99,7 @@ describe('Achievements', () => {
     const view = render(<Achievements />)
     const text = view.text()
     expect(text).toContain('ACHIEVEMENTS')
-    expect(text).toContain('0/10')
+    expect(text).toContain(`0/${ACHIEVEMENTS.length}`)
     expect(text).toContain('First Blood')
     expect(text).toContain('Serpent Slayer')
   })
@@ -111,7 +111,7 @@ describe('Achievements', () => {
     })
 
     // SET unlocks First Blood and String Slinger together
-    expect(view.text()).toContain('2/10')
+    expect(view.text()).toContain(`2/${ACHIEVEMENTS.length}`)
     expect(view.text()).toContain('UNLOCKED')
     expect(view.text()).toContain('ACHIEVEMENT UNLOCKED')
     expect(view.text()).toContain('First Blood')
