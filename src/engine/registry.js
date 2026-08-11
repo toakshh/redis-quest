@@ -8,6 +8,7 @@ import * as hashes from './commands/hashes.js'
 import * as lists from './commands/lists.js'
 import * as sets from './commands/sets.js'
 import * as zsets from './commands/zsets.js'
+import * as pubsub from './commands/pubsub.js'
 import * as transactions from './commands/transactions.js'
 import * as scripting from './commands/scripting.js'
 import * as server from './commands/server.js'
@@ -33,7 +34,7 @@ export function registerModule(module, opts = {}) {
   }
 }
 
-const groups = [strings, keys, hashes, lists, sets, zsets, transactions, scripting, server]
+const groups = [strings, keys, hashes, lists, sets, zsets, pubsub, transactions, scripting, server]
 for (const group of groups) {
   for (const [name, entry] of Object.entries(group)) {
     if (entry && typeof entry === 'function') {

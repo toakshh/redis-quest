@@ -81,6 +81,7 @@ export const GET = cmd({
   const entry = engine._get(args[1])
   if (!entry) return nilReply()
   if (entry.type !== 'string') return wrongType()
+  engine._touch(args[1], entry)
   return bulkReply(entry.value)
 })
 
