@@ -11,6 +11,10 @@ import * as zsets from './commands/zsets.js'
 import * as transactions from './commands/transactions.js'
 import * as scripting from './commands/scripting.js'
 import * as server from './commands/server.js'
+import * as acl from './commands/acl.js'
+import * as cluster from './commands/cluster.js'
+import * as debug from './commands/debug.js'
+import * as geo from './commands/geo.js'
 
 export const registry = new Map()
 
@@ -33,7 +37,7 @@ export function registerModule(module, opts = {}) {
   }
 }
 
-const groups = [strings, keys, hashes, lists, sets, zsets, transactions, scripting, server]
+const groups = [strings, keys, hashes, lists, sets, zsets, transactions, scripting, server, acl, cluster, debug, geo]
 for (const group of groups) {
   for (const [name, entry] of Object.entries(group)) {
     if (entry && typeof entry === 'function') {
