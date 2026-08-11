@@ -1,0 +1,28 @@
+{
+  "name": "redis-quest",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Redis Quest — a playable, terminal-driven Redis simulator: learn real Redis commands against an in-memory mock engine with a visual memory inspector, boss battles and achievements.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.5",
+    "autoprefixer": "^10.4.20",
+    "jsdom": "^30.0.1",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.19",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
+  }
+}

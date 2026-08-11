@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: #0a0e14;
+    --panel: #10151f;
+    --panel2: #141b29;
+    --edge: #1f2a3d;
+    --cyan: #22d3ee;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #fb7185;
+    --purple: #a78bfa;
+    --fg: #c8d3e0;
+    --dim: #64748b;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--edge) var(--panel);
+  }
+
+  body {
+    @apply bg-bg text-fg font-mono antialiased;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  #root {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-panel border border-edge rounded-lg;
+  }
+
+  .panel-2 {
+    @apply bg-panel2 border border-edge rounded;
+  }
+
+  .glow-text {
+    text-shadow: 0 0 8px var(--cyan);
+  }
+
+  .glow-text-green {
+    text-shadow: 0 0 8px var(--green);
+  }
+
+  .glow-text-red {
+    text-shadow: 0 0 8px var(--red);
+  }
+
+  .scanlines::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.06) 2px,
+      rgba(0, 0, 0, 0.06) 4px
+    );
+    pointer-events: none;
+  }
+
+  .terminal-input {
+    @apply bg-transparent text-fg outline-none w-full;
+    caret-color: var(--cyan);
+  }
+
+  .btn {
+    @apply px-4 py-2 border border-edge rounded text-sm
+           hover:border-cyan hover:text-cyan
+           active:bg-cyan/10 transition-colors;
+  }
+
+  .btn-primary {
+    @apply btn bg-cyan/10 border-cyan text-cyan;
+  }
+}
