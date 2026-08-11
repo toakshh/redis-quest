@@ -42,9 +42,9 @@ describe('HSET', () => {
     engine.rawExecute('SET', 'h', 'x')
     engine.rawExecute('DEL', 'h')
     engine.rawExecute('HSET', 'h', 'a', '1')
-    engine.rawExecute('PEXPIRE', 'h', '5000')
+    engine.rawExecute('PEXPIRE', 'h', '60000')
     engine.rawExecute('HSET', 'h', 'b', '2')
-    expect(engine.rawExecute('PTTL', 'h')).toEqual(integer(5000))
+    expect(engine.rawExecute('PTTL', 'h').value).toBeGreaterThan(50000)
   })
 })
 

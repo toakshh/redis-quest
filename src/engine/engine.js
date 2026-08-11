@@ -248,6 +248,20 @@ export class MockRedisEngine {
     return this._executeTokens([command, ...args])
   }
 
+  // Silent execution: performs the command but does NOT broadcast the
+  // 'command' event. Used by boss/NPC scripts that inject keys or mutate
+  // state without the player earning XP or triggering command feedback.
+  silentExecute(command, ...args) {
+    this._silent = true
+    let reply
+    try {
+      reply = this._executeTokens([command, ...args])
+    } finally {
+      this._silent = false
+    }
+    return reply
+  }
+
   _executeTokens(tokens) {
     const name = String(tokens[0])
     const canon = name.toUpperCase()

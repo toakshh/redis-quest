@@ -124,8 +124,8 @@ describe('boss battle', () => {
     const run = useGameStore.getState().runCommand
     run('SET quest:start begun')
     const s = useGameStore.getState()
-    // challenge xp (15) + first-command xp (10) + string-master xp (10)
-    expect(s.xp).toBe(35)
+    // command XP (base 10 * 1.5 + first-use 10 * 1.5 = 30) + challenge xp (15) + first-command xp (10) + string-master xp (10)
+    expect(s.xp).toBe(65)
     expect(levelInfo(s.xp).level).toBe(1)
   })
 
