@@ -17,6 +17,6 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Subscribes to `gameStore` for audio settings (toggles, volume).
 - Initialized in `App.jsx`.
 
-## Inventory System
-- Located in `src/components/InventoryModal.jsx`.
-- Toggled via `I` hotkey or HUD button.
+## Inventory & Chest System
+- Inventory modal in `src/components/InventoryModal.jsx` (toggled via `I` hotkey or HUD button).
+- Chest Command educational overlay modal in `src/components/ChestCommandModal.jsx` with data in `src/data/chestCommands.js`.

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { soundEngine } from '../audio/SoundEngine.js'
 import VictoryModal from './VictoryModal.jsx'
+import ChestCommandModal from './ChestCommandModal.jsx'
 import { GameLoop } from '../game/GameLoop.js'
 import { World } from '../game/World.js'
 import { drawIsoTile, drawIsoBlock, gridToIso, isoToGrid, TILE_WIDTH, TILE_HEIGHT } from '../game/IsometricRenderer.js'
@@ -144,6 +145,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const [enemies, setEnemies] = useState(REGION_MAPS['memory-village'].enemies)
   const [battleMessage, setBattleMessage] = useState('')
   const [showVictory, setShowVictory] = useState(false)
+  const [openedChestGem, setOpenedChestGem] = useState(null)
 
   // Camera instance ref
   const cameraRef = useRef(new Camera({ viewportWidth: 1200, viewportHeight: 700, smoothFactor: 0.15 }))
@@ -165,6 +167,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
 
   // Keyboard & QWERTY Physical controls using IsometricEngineControls
   useEffect(() => {
+    if (openedChestGem) return
     const controls = new IsometricEngineControls({
       onMove: (dx, dy) => movePlayer(dx, dy),
       onInteract: () => interactCurrentTile(),
@@ -180,7 +183,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
 
     controls.attach(window)
     return () => controls.detach(window)
-  }, [terminalOpen, selectedRegion, chests, enemies])
+  }, [terminalOpen, selectedRegion, chests, enemies, openedChestGem])
 
   const handleProceed = () => {
     const regionIds = Object.keys(REGION_MAPS)
@@ -191,22 +194,27 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     setBattleMessage('Proceeding to next challenge!')
   }
 
+  const openChest = (chest) => {
+    chest.looted = true
+    if (!inventoryGems.includes(chest.gem)) {
+      setInventoryGems((prev) => [...prev, chest.gem])
+    }
+    setBattleMessage(`✨ Opened Chest! Acquired Command Gem: [ ${chest.gem} ]`)
+    if (!store.objectiveBannerDismissed) {
+      store.dismissObjectiveBanner()
+    }
+    if (engine) {
+      engine.execute(`SET ${chest.key} "${chest.value}"`)
+    }
+    setOpenedChestGem(chest.gem)
+  }
+
   const interactCurrentTile = () => {
     soundEngine.playSFX('interact')
     const p = playerRef.current
     const chest = chests.find((c) => !c.looted && c.gx === Math.round(p.gx) && c.gy === Math.round(p.gy))
     if (chest) {
-      chest.looted = true
-      if (!inventoryGems.includes(chest.gem)) {
-        setInventoryGems((prev) => [...prev, chest.gem])
-      }
-      setBattleMessage(`✨ Interacted! Acquired Command Gem: [ ${chest.gem} ]`)
-      if (!store.objectiveBannerDismissed) {
-        store.dismissObjectiveBanner()
-      }
-      if (engine) {
-        engine.execute(`SET ${chest.key} "${chest.value}"`)
-      }
+      openChest(chest)
     } else {
       setBattleMessage('Searched area... No nearby objects to interact with.')
     }
@@ -234,17 +242,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       // Check chest interaction
       chests.forEach((chest) => {
         if (!chest.looted && chest.gx === newGx && chest.gy === newGy) {
-          chest.looted = true
-          if (!inventoryGems.includes(chest.gem)) {
-            setInventoryGems((prev) => [...prev, chest.gem])
-          }
-          setBattleMessage(`✨ Opened Chest! Acquired Command Gem: [ ${chest.gem} ]`)
-          if (!store.objectiveBannerDismissed) {
-            store.dismissObjectiveBanner()
-          }
-          if (engine) {
-            engine.execute(`SET ${chest.key} "${chest.value}"`)
-          }
+          openChest(chest)
         }
       })
     }
@@ -709,6 +707,13 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         <VictoryModal 
           isOpen={showVictory} 
           onProceed={handleProceed}
+        />
+
+        {/* Chest Command Learning Modal */}
+        <ChestCommandModal
+          isOpen={Boolean(openedChestGem)}
+          onClose={() => setOpenedChestGem(null)}
+          commandGem={openedChestGem}
         />
 
         {/* Touch D-Pad Controls for mobile / touch */}
