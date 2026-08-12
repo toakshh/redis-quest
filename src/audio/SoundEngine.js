@@ -6,89 +6,128 @@ class SoundEngine {
     this.ctx = null
     this.bgmGain = null
     this.sfxGain = null
-    this.bgmNode = null
+    this.bgmSource = null
+    this.bgmBuffers = {} // Store loaded buffers
   }
 
-  init() {
-    if (this.ctx) return
-    if (typeof window === 'undefined' || (!window.AudioContext && !window.webkitAudioContext)) {
-        return
+  async loadAsset(name, url) {
+    try {
+        const response = await fetch(url)
+        const arrayBuffer = await response.arrayBuffer()
+        const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer)
+        this.bgmBuffers[name] = audioBuffer
+    } catch (e) {
+        console.error(`Failed to load BGM asset ${name}:`, e)
     }
+  }
+
+  async init() {
+    if (this.ctx) return
+    if (typeof window === 'undefined' || (!window.AudioContext && !window.webkitAudioContext)) return
     this.ctx = new (window.AudioContext || window.webkitAudioContext)()
     this.bgmGain = this.ctx.createGain()
     this.sfxGain = this.ctx.createGain()
-    this.bgmGain.connect(this.ctx.destination)
+    
+    // Low-pass filter for a "warmer" retro sound
+    const filter = this.ctx.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = 2000
+    this.bgmGain.connect(filter)
+    filter.connect(this.ctx.destination)
     this.sfxGain.connect(this.ctx.destination)
 
-    // Sync from store
+    // Load local assets
+    await Promise.all([
+        this.loadAsset('exploration', '/src/assets/audio/exploration.mp3'),
+        this.loadAsset('action', '/src/assets/audio/action.mp3'),
+        this.loadAsset('battle', '/src/assets/audio/battle.mp3'),
+        this.loadAsset('dungeon', '/src/assets/audio/dungeon.mp3'),
+        this.loadAsset('victory', '/src/assets/audio/victory-boss.mp3')
+    ])
+
     const sync = (state) => {
       if (!this.bgmGain || !this.sfxGain) return
-      this.bgmGain.gain.value = state.bgmEnabled ? state.bgmVolume : 0
-      this.sfxGain.gain.value = state.sfxEnabled ? state.sfxVolume : 0
+      this.bgmGain.gain.value = state.bgmEnabled ? state.bgmVolume * 0.3 : 0
+      this.sfxGain.gain.value = state.sfxEnabled ? state.sfxVolume * 0.5 : 0
     }
-    
-    // Subscribe to store changes
     useGameStore.subscribe(sync)
-    // Initial sync
     sync(useGameStore.getState())
   }
 
   playSFX(type) {
     if (!this.ctx) return
-    if (!useGameStore.getState().sfxEnabled) return
-
     const now = this.ctx.currentTime
+    
     const osc = this.ctx.createOscillator()
     const gain = this.ctx.createGain()
     osc.connect(gain)
-
-    // Use sfxGain for SFX control
     gain.connect(this.sfxGain)
 
-    // Simple synth logic for different sounds
     switch(type) {
-        case 'gem': // Rising chime
-            osc.type = 'triangle'
-            osc.frequency.setValueAtTime(440, now)
-            osc.frequency.linearRampToValueAtTime(880, now + 0.1)
-            gain.gain.setValueAtTime(0, now)
-            gain.gain.linearRampToValueAtTime(0.3, now + 0.05)
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4)
-            osc.start()
-            osc.stop(now + 0.4)
-            break
-        case 'defeat': // Explosion
-            osc.type = 'sawtooth'
-            osc.frequency.setValueAtTime(100, now)
-            osc.frequency.exponentialRampToValueAtTime(20, now + 0.5)
-            gain.gain.setValueAtTime(0.5, now)
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5)
-            osc.start()
-            osc.stop(now + 0.5)
-            break
-        case 'click':
+        // UI Navigation / Buttons
+        case 'nav':
             osc.type = 'square'
-            osc.frequency.setValueAtTime(600, now)
+            osc.frequency.setValueAtTime(400, now)
             gain.gain.setValueAtTime(0.1, now)
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05)
+            gain.gain.linearRampToValueAtTime(0, now + 0.05)
             osc.start()
             osc.stop(now + 0.05)
             break
-        case 'shuffle':
-            osc.type = 'square'
-            osc.frequency.setValueAtTime(200, now)
-            osc.frequency.exponentialRampToValueAtTime(100, now + 0.1)
+        case 'open':
+            osc.type = 'triangle'
+            osc.frequency.setValueAtTime(600, now)
+            osc.frequency.linearRampToValueAtTime(800, now + 0.1)
             gain.gain.setValueAtTime(0.2, now)
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1)
+            gain.gain.linearRampToValueAtTime(0, now + 0.1)
             osc.start()
             osc.stop(now + 0.1)
             break
-        case 'victory': // Celebratory fanfare
+        case 'close':
+            osc.type = 'triangle'
+            osc.frequency.setValueAtTime(800, now)
+            osc.frequency.linearRampToValueAtTime(600, now + 0.1)
+            gain.gain.setValueAtTime(0.2, now)
+            gain.gain.linearRampToValueAtTime(0, now + 0.1)
+            osc.start()
+            osc.stop(now + 0.1)
+            break
+        // Gameplay
+        case 'interact':
+            osc.type = 'sine'
+            osc.frequency.setValueAtTime(500, now)
+            gain.gain.setValueAtTime(0.3, now)
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08)
+            osc.start()
+            osc.stop(now + 0.08)
+            break
+        case 'gem':
+            osc.type = 'triangle'
+            osc.frequency.setValueAtTime(880, now)
+            osc.frequency.linearRampToValueAtTime(1760, now + 0.15)
+            gain.gain.setValueAtTime(0, now)
+            gain.gain.linearRampToValueAtTime(0.4, now + 0.05)
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3)
+            osc.start()
+            osc.stop(now + 0.3)
+            break
+        case 'defeat': // More complex "pop" sound
+            const noise = this.ctx.createBufferSource()
+            const buf = this.ctx.createBuffer(1, 8192, this.ctx.sampleRate)
+            const data = buf.getChannelData(0)
+            for(let i=0; i<8192; i++) data[i] = Math.random() * 2 - 1
+            noise.buffer = buf
+            noise.connect(gain)
+            gain.gain.setValueAtTime(0.4, now)
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4)
+            noise.start()
+            noise.stop(now + 0.4)
+            break
+        case 'victory':
             osc.type = 'square'
-            osc.frequency.setValueAtTime(440, now)
-            osc.frequency.setValueAtTime(554, now + 0.1)
-            osc.frequency.setValueAtTime(659, now + 0.2)
-            osc.frequency.setValueAtTime(880, now + 0.3)
+            osc.frequency.setValueAtTime(600, now)
+            osc.frequency.setValueAtTime(800, now + 0.1)
+            osc.frequency.setValueAtTime(1000, now + 0.2)
+            osc.frequency.setValueAtTime(1200, now + 0.3)
             gain.gain.setValueAtTime(0.3, now)
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6)
             osc.start()
@@ -97,18 +136,28 @@ class SoundEngine {
     }
   }
 
-  playBGM() {
-    if (!this.ctx) return
-    if (this.bgmNode || !useGameStore.getState().bgmEnabled) return
+  playBGM(regionId, intensity = 1) {
+    if (!this.ctx || !this.bgmBuffers['exploration']) return
+    if (this.bgmSource) this.bgmSource.stop()
     
-    // Simple procedural 8-bit loop
-    const osc = this.ctx.createOscillator()
-    osc.type = 'square'
-    osc.frequency.setValueAtTime(110, this.ctx.currentTime)
-    osc.connect(this.bgmGain)
-    osc.start()
-    this.bgmNode = osc
+    // Map regions to the 5 distinct assets
+    const map = {
+        'memory-village': 'exploration',
+        'key-value-kingdom': 'action',
+        'pubsub-city': 'battle',
+        'ds-dungeons': 'dungeon',
+        'cluster-galaxy': 'victory'
+    }
+    const assetName = map[regionId] || 'exploration'
+    
+    this.bgmSource = this.ctx.createBufferSource()
+    this.bgmSource.buffer = this.bgmBuffers[assetName]
+    this.bgmSource.loop = true
+    // Modulate speed/pitch based on intensity
+    this.bgmSource.playbackRate.value = 1 + (intensity * 0.2)
+    
+    this.bgmSource.connect(this.bgmGain)
+    this.bgmSource.start()
   }
 }
-
 export const soundEngine = new SoundEngine()

@@ -57,9 +57,31 @@ export default function App() {
   // Bind the singleton engine to the game store once (idempotent in the store).
   useEffect(() => {
     useGameStore.getState().bindEngine(engine)
+    soundEngine.init()
     soundEngine.playBGM()
+
+    // Subscribe to engine commands to trigger sounds
+    const unsubscribe = engine.on('command', ({ name, args, reply }) => {
+        if (reply && reply.type === 'error') {
+            soundEngine.playSFX('defeat')
+        } else {
+            // Mapping commands to sound effects
+            if (['SET', 'HSET', 'LPUSH', 'SADD'].includes(name)) {
+                soundEngine.playSFX('gem')
+            } else if (name === 'EXEC') {
+                soundEngine.playSFX('victory')
+            } else if (name === 'DEL') {
+                soundEngine.playSFX('shuffle')
+            }
+        }
+    })
+
     if (!hasCompletedOnboarding()) {
       setIsOnboardingOpen(true)
+    }
+    
+    return () => {
+        unsubscribe()
     }
   }, [])
 

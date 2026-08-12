@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { soundEngine } from '../audio/SoundEngine.js'
+import VictoryModal from './VictoryModal.jsx'
 import { GameLoop } from '../game/GameLoop.js'
 import { World } from '../game/World.js'
 import { drawIsoTile, drawIsoBlock, gridToIso, isoToGrid, TILE_WIDTH, TILE_HEIGHT } from '../game/IsometricRenderer.js'
@@ -141,6 +143,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const [chests, setChests] = useState(REGION_MAPS['memory-village'].chests)
   const [enemies, setEnemies] = useState(REGION_MAPS['memory-village'].enemies)
   const [battleMessage, setBattleMessage] = useState('')
+  const [showVictory, setShowVictory] = useState(false)
 
   // Camera instance ref
   const cameraRef = useRef(new Camera({ viewportWidth: 1200, viewportHeight: 700, smoothFactor: 0.15 }))
@@ -179,7 +182,17 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     return () => controls.detach(window)
   }, [terminalOpen, selectedRegion, chests, enemies])
 
+  const handleProceed = () => {
+    const regionIds = Object.keys(REGION_MAPS)
+    const currentIndex = regionIds.indexOf(selectedRegion)
+    const nextIndex = (currentIndex + 1) % regionIds.length
+    handleRegionSelect(regionIds[nextIndex])
+    setShowVictory(false)
+    setBattleMessage('Proceeding to next challenge!')
+  }
+
   const interactCurrentTile = () => {
+    soundEngine.playSFX('interact')
     const p = playerRef.current
     const chest = chests.find((c) => !c.looted && c.gx === Math.round(p.gx) && c.gy === Math.round(p.gy))
     if (chest) {
@@ -199,7 +212,14 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     }
   }
 
+  // Play BGM with intensity
+  useEffect(() => {
+    const intensity = 1 - (enemies.filter(e => e.hp > 0).length / Math.max(1, enemies.length))
+    soundEngine.playBGM(selectedRegion, intensity)
+  }, [selectedRegion, enemies])
+
   const movePlayer = (dx, dy) => {
+    soundEngine.playSFX('click')
     const map = REGION_MAPS[selectedRegion]
     const p = playerRef.current
     const newGx = Math.max(0, Math.min(map.width - 1, p.gx + dx))
@@ -264,10 +284,16 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     }
   }
 
-  // Quest objective completion check: all chests looted + all enemies defeated
+  // Quest objective completion check
   const activeEnemyCount = enemies.filter((e) => e.hp > 0).length
   const unlootedChestCount = chests.filter((c) => !c.looted).length
   const questComplete = activeEnemyCount === 0 && unlootedChestCount === 0
+
+  useEffect(() => {
+    if (questComplete && !showVictory) {
+        setShowVictory(true)
+    }
+  }, [questComplete])
 
   // Map tile screenspace coordinates for HUD markers (mirrors the render loop math)
   const getTileScreenPos = (gx, gy) => {
@@ -279,6 +305,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   // Handle in-game diegetic terminal command submit
   const handleTerminalSubmit = (e) => {
     e.preventDefault()
+    soundEngine.playSFX('click')
     if (!terminalInput.trim()) return
 
     const cmd = terminalInput.trim()
@@ -508,10 +535,10 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         <div className="flex items-center gap-2">
           <span className="text-cyan-400 font-bold text-sm tracking-wider">REGIONS:</span>
           <div className="flex gap-1 overflow-x-auto">
-            {Object.keys(REGION_MAPS).map((rid) => (
+            {Object.keys(REGION_MAPS).map((rid) => (              
               <button
                 key={rid}
-                onClick={() => handleRegionSelect(rid)}
+                onClick={() => {soundEngine.playSFX('click'); handleRegionSelect(rid)}}
                 className={`px-3 py-1 text-xs rounded font-medium transition-all ${
                   selectedRegion === rid
                     ? 'bg-cyan-500 text-slate-950 font-bold shadow-[0_0_10px_rgba(6,182,212,0.5)]'
@@ -527,7 +554,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         <div className="flex items-center gap-2">
           {onToggleFullscreen && (
             <button
-              onClick={onToggleFullscreen}
+              onClick={() => {soundEngine.playSFX('nav'); onToggleFullscreen()}}
               className={`px-3 py-1 text-xs rounded font-bold border transition-all ${
                 isFullscreen
                   ? 'bg-amber-500 text-slate-950 border-amber-400'
@@ -539,6 +566,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
           )}
           <button
             onClick={() => {
+              soundEngine.playSFX('open')
               if (onToggleTerminalDrawer) {
                 onToggleTerminalDrawer()
               } else {
@@ -676,6 +704,12 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
             {battleMessage}
           </div>
         )}
+        
+        {/* Victory Modal */}
+        <VictoryModal 
+          isOpen={showVictory} 
+          onProceed={handleProceed}
+        />
 
         {/* Touch D-Pad Controls for mobile / touch */}
         <div className="absolute bottom-4 left-4 grid grid-cols-3 gap-1 w-32 h-32 opacity-80 hover:opacity-100 transition-opacity">
@@ -716,7 +750,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
               <span className="text-xs font-bold text-amber-400 tracking-widest flex items-center gap-2">
                 📜 REDIS QUEST DIEGETIC TERMINAL SCROLL
               </span>
-              <button onClick={() => setTerminalOpen(false)} className="text-slate-400 hover:text-white text-xs">✕ CLOSE (~)</button>
+              <button onClick={() => {soundEngine.playSFX('close'); setTerminalOpen(false)}} className="text-slate-400 hover:text-white text-xs">✕ CLOSE (~)</button>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-1 text-xs text-slate-300 p-2 bg-slate-900/50 rounded border border-slate-800/80">
