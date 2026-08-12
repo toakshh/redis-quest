@@ -1,0 +1,131 @@
+{
+  "traits": {
+    "curiosity": {
+      "name": "Curious",
+      "icon": "🔍",
+      "desc": "Wonders about the data and what it could do.",
+      "lines": [
+        "What else could you try with this?",
+        "I wonder what is inside that key.",
+        "Try something new. I will watch.",
+        "There is always another way to look."
+      ]
+    },
+    "humor": {
+      "name": "Playful",
+      "icon": "😄",
+      "desc": "Keeps it light even when a command fails.",
+      "lines": [
+        "Even the best servers have bad days.",
+        "That error needs a coffee.",
+        "I would laugh, but I have no mouth. Yet.",
+        "Plot twist: that command was not it."
+      ]
+    },
+    "wisdom": {
+      "name": "Wise",
+      "icon": "🦉",
+      "desc": "Prefers careful steps and clear names.",
+      "lines": [
+        "Slow is smooth, and smooth is fast.",
+        "Name keys as if a friend must read them.",
+        "The best fix is the one you think through.",
+        "Practice makes the pattern stick."
+      ]
+    },
+    "sternness": {
+      "name": "Firm",
+      "icon": "🛡️",
+      "desc": "Demands precision when the going is rough.",
+      "lines": [
+        "No guessing. Read the error, then act.",
+        "Focus. The data will not wait.",
+        "Right shape, right words. Do it once.",
+        "You know this. Prove it."
+      ]
+    }
+  },
+  "playstyle": {
+    "rushed": [
+      "Fast hands. That works — until it does not.",
+      "Quick! But double-check the shape.",
+      "You type fast. Let me slow you down a touch."
+    ],
+    "steady": [
+      "A steady pace. The data respects that.",
+      "Calm and sure. I like it.",
+      "You think before you type. Good."
+    ],
+    "careful": [
+      "Careful and precise. Fewer mistakes.",
+      "You weigh each step. The server approves.",
+      "Slow and sure. My kind of partner."
+    ],
+    "experimental": [
+      "You test the edges. That is how you learn.",
+      "Bold moves. Some will stick.",
+      "Try, see, adjust. That is the way."
+    ],
+    "byTheBook": [
+      "Clean and by the book. Never wrong.",
+      "Textbook form. Respect.",
+      "You follow the steps exactly. Solid."
+    ]
+  },
+  "boss": {
+    "engaged": [
+      "A boss guards this region. It reads data too.",
+      "This foe holds a shield of data types.",
+      "Solve the objective. The shield will crack."
+    ],
+    "solved": [
+      "SHIELD BREACHED! It felt that one.",
+      "A hit lands. The boss staggers.",
+      "That objective fell. Keep the pressure."
+    ],
+    "miss": [
+      "The shield held. Read the hint again.",
+      "Not quite. The boss mocks your miss.",
+      "The vault rejected that. Adjust."
+    ],
+    "defeated": [
+      "The boss shatters into data. Incredible!",
+      "VICTORY. The realm bows to you.",
+      "You dismantled it with pure commands."
+    ]
+  },
+  "tutorial": {
+    "start": [
+      "A quest begins. I will guide you step by step.",
+      "Follow the steps. Type each command for real.",
+      "This is not a quiz. You do it, and you learn it."
+    ],
+    "stepDone": [
+      "That step is yours. The world changed for it.",
+      "One more step in the bag. Look at it work.",
+      "Done. Notice what just happened."
+    ],
+    "complete": [
+      "Quest complete! The village thanks you.",
+      "You finished the quest. That is real skill.",
+      "Done! And you did every step yourself."
+    ],
+    "proSkip": [
+      "Pro mode. No tutorials, no handholding.",
+      "Skipping the quest. You know this stuff.",
+      "Straight to the deep end. I respect it."
+    ]
+  },
+  "mode": {
+    "beginner": [
+      "Beginner mode on. I will nudge you when you stall.",
+      "Full guidance active. Ask me anything.",
+      "Guidance on. We go at your pace."
+    ],
+    "pro": [
+      "Pro mode on. Hints stay short and late.",
+      "Pro mode. You get concept hints, not answers.",
+      "Pro mode. The training wheels come off."
+    ]
+  }
+}

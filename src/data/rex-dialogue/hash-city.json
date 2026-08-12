@@ -1,0 +1,69 @@
+{
+  "region": "hash-city",
+  "name": "Hash City",
+  "intro": [
+    "Every citizen here is a profile of fields.",
+    "A hash is a small file about one thing.",
+    "Welcome to Hash City. Name, then fields."
+  ],
+  "hints": {
+    "1": [
+      "Each building holds many labeled slots.",
+      "One hero, many traits.",
+      "The city files things under a name.",
+      "Look closer at a profile."
+    ],
+    "2": [
+      "A hash stores fields under one key.",
+      "One key, many field values.",
+      "You set a field on a hash.",
+      "You read a field from a hash."
+    ],
+    "3": [
+      "Try: HSET <key> <field> <value>",
+      "Try: HGET <key> <field>",
+      "Try: HGETALL <key>",
+      "Try: HINCRBY <key> <field> <amount>"
+    ],
+    "4": [
+      "HSET hero:1 name \"Alex\" hp 100",
+      "HGET hero:1 hp",
+      "HGETALL hero:1",
+      "HINCRBY hero:1 hp -20"
+    ]
+  },
+  "reactions": {
+    "ok": [
+      "A field locks into the profile.",
+      "That citizen gains a trait.",
+      "The file updates. Clean work."
+    ],
+    "error": [
+      "That field does not fit this file.",
+      "The city clerk frowns.",
+      "No such field on that profile."
+    ]
+  },
+  "personality": {
+    "curiosity": [
+      "What else lives in that profile?",
+      "One field at a time, a whole person appears.",
+      "I wonder what HP it has now."
+    ],
+    "humor": [
+      "One key, many hats. That is a hash.",
+      "This city files everything. Even feelings.",
+      "A citizen is just a key with good fields."
+    ],
+    "wisdom": [
+      "A hash keeps one thing's many parts together.",
+      "Update one field without losing the rest.",
+      "Profiles are power. Read them all."
+    ],
+    "sternness": [
+      "HSET needs a field and a value.",
+      "One field per call. No skipping.",
+      "The file is only as good as its fields."
+    ]
+  }
+}

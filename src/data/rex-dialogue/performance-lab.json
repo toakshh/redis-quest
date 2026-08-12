@@ -1,0 +1,69 @@
+{
+  "region": "performance-lab",
+  "name": "Performance Lab",
+  "intro": [
+    "This lab studies speed and timing.",
+    "Many steps, one breath.",
+    "Welcome. Here, order and pace matter."
+  ],
+  "hints": {
+    "1": [
+      "Many small moves wait to be one.",
+      "The lab wants a burst, not a stream.",
+      "A set of steps hangs in the air.",
+      "Watch how commands group here."
+    ],
+    "2": [
+      "You can queue commands as one batch.",
+      "Queued commands run together as one.",
+      "A batch either all runs, or none runs.",
+      "Transactions group commands."
+    ],
+    "3": [
+      "Try: MULTI",
+      "Try: SET <key> <value>",
+      "Try: EXEC",
+      "Try: DISCARD"
+    ],
+    "4": [
+      "MULTI",
+      "SET a 1",
+      "SET b 2",
+      "EXEC"
+    ]
+  },
+  "reactions": {
+    "ok": [
+      "The batch fires as one. Clean.",
+      "All steps, one beat.",
+      "Atomic. Nothing broke in between."
+    ],
+    "error": [
+      "That step broke the batch.",
+      "The lab stops the line.",
+      "One bad step, the whole batch is off."
+    ]
+  },
+  "personality": {
+    "curiosity": [
+      "Group them. What happens at EXEC?",
+      "How many steps can one batch hold?",
+      "I wonder if it all lands at once."
+    ],
+    "humor": [
+      "MULTI is a queue that loves company.",
+      "EXEC is the drumbeat of the lab.",
+      "So many commands, so little time."
+    ],
+    "wisdom": [
+      "Group small steps into one big step.",
+      "A batch protects each other's back.",
+      "EXEC is where the magic lands."
+    ],
+    "sternness": [
+      "You queued it. Now EXEC it.",
+      "No half steps in this lab.",
+      "One batch, one breath. Go."
+    ]
+  }
+}

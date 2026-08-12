@@ -1,0 +1,98 @@
+{
+  "region": "generic",
+  "name": "The Wastes",
+  "intro": [
+    "The data here feels raw. Let me guide you.",
+    "I am REX. I read the memory of this land.",
+    "Every command you type shapes this world."
+  ],
+  "hints": {
+    "1": [
+      "Look around. What does this place ask for?",
+      "Something here is waiting for a command.",
+      "A small step will get you moving.",
+      "Try a command you already know."
+    ],
+    "2": [
+      "This place runs on stored data.",
+      "A key names a value. That is the core idea.",
+      "Think about what you want to store.",
+      "Most puzzles here want a key with a value."
+    ],
+    "3": [
+      "The shape is: COMMAND key value.",
+      "Try the command that matches the idea.",
+      "Watch the left panel for what changed.",
+      "Name your key, then give it a value."
+    ],
+    "4": [
+      "One solid way: SET mykey myvalue",
+      "If you have a key, try: GET mykey",
+      "Count with: INCR mycounter",
+      "Check it with: TYPE mykey"
+    ]
+  },
+  "reactions": {
+    "ok": [
+      "That worked. The world accepts it.",
+      "Good. The data holds steady.",
+      "Nice. I can feel that one.",
+      "Stable. Keep going."
+    ],
+    "okFirst": [
+      "A new command, and it works. Good eye.",
+      "You just used something new. Remember it.",
+      "First use of that one. It obeyed you."
+    ],
+    "error": [
+      "That one did not land.",
+      "The server said no.",
+      "Not quite. Read the error again.",
+      "That is a miss, but a safe one."
+    ],
+    "wrongtype": [
+      "That command needs a different data kind.",
+      "The value here has a type. That type said no.",
+      "Check what kind of data this key holds.",
+      "TYPE key will tell you what you face."
+    ],
+    "unknown": [
+      "That is not a command I know.",
+      "No such command in my memory.",
+      "Try COMMAND to list what works here."
+    ],
+    "expired": [
+      "A crystal faded away. It had a timer.",
+      "Something just ran out of time.",
+      "A key expired. Timers are real here."
+    ],
+    "syntax": [
+      "The words are right, but the shape is off.",
+      "Check the order of your words.",
+      "A command has a shape. Match it.",
+      "Count your words. One may be missing."
+    ]
+  },
+  "personality": {
+    "curiosity": [
+      "I wonder what that value holds...",
+      "What would happen if you changed it?",
+      "There is more here than meets the eye."
+    ],
+    "humor": [
+      "I have seen worse errors. Much worse.",
+      "Even a server needs a nap sometimes.",
+      "Careful. That key bites."
+    ],
+    "wisdom": [
+      "Patience is a skill too. Try again slowly.",
+      "Small steps beat big guesses.",
+      "Every master typed wrong at first."
+    ],
+    "sternness": [
+      "Focus. The data will not wait.",
+      "Read the error. Then act.",
+      "No shortcuts here. Do it right."
+    ]
+  }
+}

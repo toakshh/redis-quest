@@ -7,11 +7,25 @@
 // The engine itself lives outside the store (App.jsx owns the instance); the
 // store just keeps a reference so it can inspect keys for challenge validation
 // and read stats for achievement tracking.
+//
+// REX AI Companion & Tutorial System integration:
+// - REXHintSystem: 4-level progressive hints with state machine
+// - REXPersonality: Adaptive voice reacting to playstyle and region
+// - TutorialEngine: Data-driven tutorials with validation
+// - Encyclopedia: Concept lookup with readability enforcement
+// - EventBus: Decouples REX/Tutorial from UI via semantic events
 
 import { create } from 'zustand'
 import { load, save } from '../store/persistence.js'
 import { xpForCommand, comboCount, modeMultiplier, XP_BASE } from '../systems/XPSystem.js'
 import { SKILLS, purchasableSkills, canUnlockSkill } from '../systems/SkillTree.js'
+import { EventBus, EVENTS, createEventBus } from '../systems/EventBus.js'
+import { createREXHintSystem, HINT_LEVELS, MODE_CONFIG } from '../systems/REXHintSystem.js'
+import { createREXPersonality } from '../systems/REXPersonality.js'
+import { createTutorialEngine } from '../systems/TutorialEngine.js'
+import { getEntry, getEntriesByCategory, getAllCategories, searchEntries, getRelatedEntries, validateAllEntries, getCategoriesWithCounts } from '../systems/Encyclopedia.js'
+import { DIALOGUE } from '../systems/dialogue.js'
+import { getRegion, regionForCommand, regionRoadmap, rexStageFor } from '../systems/RegionMap.js'
 
 // ---------------------------------------------------------------------------
 // Catalogs
@@ -488,6 +502,232 @@ export const useGameStore = create((set, get) => {
     resetGame() {
       handling = false
       set(initialState())
+    },
+
+    // ---------------------------------------------------------------------------
+    // REX AI Companion & Tutorial System
+    // ---------------------------------------------------------------------------
+
+    // REX state
+    eventBus: null,
+    rexHintSystem: null,
+    rexPersonality: null,
+    tutorialEngine: null,
+    mode: 'beginner', // 'beginner' | 'pro'
+    currentRegion: 'memory-village',
+    lastCommandAt: 0,
+    idleTimer: null,
+
+    // Initialize REX systems
+    initREX() {
+      const state = get()
+      if (state.eventBus) return // already initialized
+
+      const eventBus = createEventBus()
+      const hintSystem = createREXHintSystem({ mode: state.mode })
+      const personality = createREXPersonality({ dialogue: DIALOGUE })
+      const tutorialEngine = createTutorialEngine({ eventBus })
+
+      set({
+        eventBus,
+        rexHintSystem: hintSystem,
+        rexPersonality: personality,
+        tutorialEngine,
+      })
+
+      // Subscribe to tutorial events for XP/rewards
+      eventBus.on(EVENTS.TUTORIAL_STEP_COMPLETED || 'tutorial:stepCompleted', ({ reward }) => {
+        if (reward?.xp) get().addXp(reward.xp)
+      })
+      eventBus.on(EVENTS.TUTORIAL_COMPLETED || 'tutorial:completed', ({ totalXp }) => {
+        if (totalXp) get().addXp(totalXp)
+      })
+    },
+
+    // Set mode (beginner/pro) - affects hint system bounds
+    setMode(mode) {
+      const validMode = MODE_CONFIG[mode] ? mode : 'beginner'
+      set({ mode: validMode })
+      get().rexHintSystem?.setMode(validMode)
+      // Emit mode change event
+      get().eventBus?.emit(EVENTS.MODE_CHANGED, { mode: validMode })
+      // REX says something about the mode change
+      const line = get().rexPersonality?.pickMode(validMode)
+      if (line) get().eventBus?.emit(EVENTS.REX_SAID, { kind: 'mode', text: line })
+    },
+
+    // Called when player enters a region
+    onRegionEnter(regionId) {
+      const { rexHintSystem, rexPersonality, eventBus, tutorialEngine } = get()
+      if (!rexHintSystem) return
+
+      set({ currentRegion: regionId })
+      rexHintSystem.onEnterRegion(regionId)
+      const intro = rexPersonality.pickIntro(regionId)
+      if (intro) eventBus.emit(EVENTS.REX_SAID, { kind: 'intro', text: intro })
+
+      // Auto-start next tutorial for region if not completed
+      const nextTutorial = tutorialEngine.getNextTutorial(regionId)
+      if (nextTutorial && get().mode === 'beginner') {
+        tutorialEngine.startTutorial(nextTutorial.id)
+      }
+    },
+
+    // Called on every command execution
+    onCommandExecuted(name, args, reply, ok) {
+      const { eventBus, rexHintSystem, rexPersonality, tutorialEngine, currentRegion, mode } = get()
+      if (!rexHintSystem) return
+
+      const at = Date.now()
+      set({ lastCommandAt: at })
+
+      // Update personality playstyle observation
+      const isFirst = !get().engine?.stats?.commandsByType?.[name]
+      rexPersonality.observe({ at, ok, isFirst: name })
+
+      // Hint system tracks command
+      const situationId = `cmd:${name}`
+      rexHintSystem.onCommand(situationId, ok, at)
+
+      // Tutorial validation
+      if (tutorialEngine.getState().currentTutorial) {
+        const input = `${name} ${args.join(' ')}`
+        const result = tutorialEngine.validateStep(input)
+        if (result.valid) {
+          // Step completed - reward handled by event listener
+        }
+      }
+
+      // Emit command events for REX reactions
+      if (ok) {
+        eventBus.emit(EVENTS.COMMAND_EXECUTED, { name, args, reply, ok: true, at })
+        const reaction = rexPersonality.react('ok', currentRegion)
+        if (reaction) eventBus.emit(EVENTS.REX_SAID, { kind: 'reaction', text: reaction })
+      } else {
+        eventBus.emit(EVENTS.COMMAND_FAILED, { name, args, reply, ok: false, at })
+        const reaction = rexPersonality.react('error', currentRegion)
+        if (reaction) eventBus.emit(EVENTS.REX_SAID, { kind: 'reaction', text: reaction })
+      }
+
+      // Check for boss challenge
+      if (get().boss && !get().boss.defeated) {
+        get().checkBoss(reply)
+      }
+
+      // Sync stats & achievements
+      get().syncStats()
+      get().checkAchievements()
+    },
+
+    // Called when player is idle
+    onIdle(elapsedMs) {
+      const { eventBus, rexHintSystem, currentRegion } = get()
+      if (!rexHintSystem) return
+
+      const at = Date.now()
+      const level = rexHintSystem.onIdle(currentRegion, elapsedMs, at)
+      if (level) {
+        const hint = get().rexPersonality.pickHint(currentRegion, level)
+        if (hint) {
+          eventBus.emit(EVENTS.REX_HINT, { situationId: currentRegion, level, text: hint })
+          eventBus.emit(EVENTS.REX_SAID, { kind: 'hint', text: hint })
+          rexHintSystem.onHintShown(currentRegion, at)
+        }
+      }
+    },
+
+    // Player asks for help
+    onAskHelp(kind) {
+      const { eventBus, rexHintSystem, rexPersonality, currentRegion } = get()
+      if (!rexHintSystem) return
+
+      const at = Date.now()
+      const level = rexHintSystem.onAskHelp(currentRegion, kind, at)
+      const hint = rexPersonality.pickHint(currentRegion, level)
+      if (hint) {
+        eventBus.emit(EVENTS.REX_HINT, { situationId: currentRegion, level, text: hint })
+        eventBus.emit(EVENTS.REX_SAID, { kind: 'help', text: hint })
+        rexHintSystem.onHintShown(currentRegion, at)
+      }
+    },
+
+    // Get REX personality playstyle tags
+    getPlaystyleTags() {
+      return get().rexPersonality?.playstyleTags() || { pace: 'steady', style: 'byTheBook' }
+    },
+
+    // Tutorial actions
+    startTutorial(tutorialId) {
+      return get().tutorialEngine?.startTutorial(tutorialId)
+    },
+    skipTutorial() {
+      return get().tutorialEngine?.skipTutorial()
+    },
+    requestHint(level) {
+      return get().tutorialEngine?.requestHint(level)
+    },
+    getTutorialState() {
+      return get().tutorialEngine?.getState()
+    },
+
+    // Encyclopedia actions
+    getEncyclopediaEntry(id) {
+      return getEntry(id)
+    },
+    getEncyclopediaCategory(category) {
+      return getEntriesByCategory(category)
+    },
+    getEncyclopediaCategories() {
+      return getAllCategories()
+    },
+    searchEncyclopedia(query) {
+      return searchEntries(query)
+    },
+    getRelatedEncyclopediaEntries(entryId) {
+      return getRelatedEntries(entryId)
+    },
+    validateEncyclopedia() {
+      return validateAllEntries()
+    },
+    getEncyclopediaCategoriesWithCounts() {
+      return getCategoriesWithCounts()
+    },
+
+    // Region map helpers
+    getRegionForCommand(cmd) {
+      return regionForCommand(cmd)
+    },
+    getStageForCommand(cmd) {
+      const regionId = regionForCommand(cmd)
+      const region = getRegion(regionId)
+      return region?.stage || 1
+    },
+
+    // Persistence
+    serializeREX() {
+      return {
+        mode: get().mode,
+        currentRegion: get().currentRegion,
+        hintSystem: get().rexHintSystem?.serialize(),
+        personality: get().rexPersonality?.serialize(),
+        tutorial: get().tutorialEngine?.serialize(),
+      }
+    },
+    hydrateREX(state) {
+      if (!state) return
+      get().setMode(state.mode)
+      if (state.currentRegion) get().onRegionEnter(state.currentRegion)
+      get().rexHintSystem?.hydrate(state.hintSystem)
+      get().rexPersonality?.hydrate(state.personality)
+      get().tutorialEngine?.hydrate(state.tutorial)
+    },
+
+    // Reset REX state (new game)
+    resetREX() {
+      get().rexHintSystem?.reset()
+      get().rexPersonality?.hydrate({})
+      get().tutorialEngine?.reset()
+      set({ mode: 'beginner', currentRegion: 'memory-village', lastCommandAt: 0 })
     },
   }
 })

@@ -1,0 +1,69 @@
+{
+  "region": "redis-core",
+  "name": "Redis Core",
+  "intro": [
+    "This is the engine room of the whole realm.",
+    "Servers and stats live here.",
+    "The Core watches every command you send."
+  ],
+  "hints": {
+    "1": [
+      "The server hums with quiet power.",
+      "Stats pile up like dust.",
+      "The Core knows how busy you are.",
+      "A switch of worlds sits here."
+    ],
+    "2": [
+      "You can ask the server about itself.",
+      "Stats tell you what the server sees.",
+      "You can switch databases.",
+      "Every key count lives in the server."
+    ],
+    "3": [
+      "Try: INFO",
+      "Try: DBSIZE",
+      "Try: SELECT <index>",
+      "Try: FLUSHDB"
+    ],
+    "4": [
+      "INFO memory",
+      "DBSIZE",
+      "SELECT 3",
+      "PING"
+    ]
+  },
+  "reactions": {
+    "ok": [
+      "The Core logs it. Quietly.",
+      "The server nods.",
+      "Another tick in the machine."
+    ],
+    "error": [
+      "The Core rejects that.",
+      "No such knob in the engine room.",
+      "The server shakes its head."
+    ]
+  },
+  "personality": {
+    "curiosity": [
+      "What stats does the server keep on you?",
+      "Try INFO and read your own legend.",
+      "How many keys did you make today?"
+    ],
+    "humor": [
+      "The server is judging you. Gently.",
+      "FLUSHDB is the nuclear button. Fun.",
+      "INFO is the server's diary."
+    ],
+    "wisdom": [
+      "Know your server before you trust it.",
+      "A clean database is a happy one.",
+      "Read the stats to learn your pace."
+    ],
+    "sternness": [
+      "The engine room is not a toy.",
+      "Check before you flush.",
+      "A server remembers everything you type."
+    ]
+  }
+}
