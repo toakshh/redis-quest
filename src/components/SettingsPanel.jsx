@@ -150,11 +150,13 @@ export default function SettingsPanel({ className = '' }) {
     hintDepth,
     visualGuides,
     speedrunTimer,
+    terminalAutocomplete,
     autoSaveInterval,
     setMode,
     setHintDepth,
     setVisualGuides,
     setSpeedrunTimer,
+    setTerminalAutocomplete,
     saveGame,
     loadGame,
     resetGame,
@@ -307,8 +309,8 @@ export default function SettingsPanel({ className = '' }) {
             <SettingToggle
               label="CLI Auto-Completion Hints"
               description="Show beginner Redis command suggestions in the CLI terminal drawer"
-              enabled={visualGuides}
-              onChange={setVisualGuides}
+              enabled={terminalAutocomplete ?? true}
+              onChange={setTerminalAutocomplete || setVisualGuides}
               icon="⌨️"
             />
             <SettingToggle
