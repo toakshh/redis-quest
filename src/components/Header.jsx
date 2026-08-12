@@ -31,7 +31,7 @@ function Meter({ pct, className }) {
 // Top app bar: brand, player level/XP, keys in the active db, and a live
 // used_memory gauge. Live-updates on every engine mutation (change/expired)
 // so keys + memory always reflect what the terminal just did.
-export default function Header({ engine, className = '' }) {
+export default function Header({ engine, onOpenTutorial, className = '' }) {
   const xp = useGameStore((s) => s.xp)
   const skillPoints = useGameStore((s) => s.skillPoints)
   const unlockedSkills = useGameStore((s) => s.unlockedSkills)
@@ -139,6 +139,18 @@ export default function Header({ engine, className = '' }) {
             {mode === 'pro' ? 'PRO' : 'BEGINNER'}
           </span>
         </div>
+
+        <div className="h-8 w-px bg-edge" aria-hidden="true" />
+
+        {/* How to Play tutorial button */}
+        <button
+          type="button"
+          onClick={onOpenTutorial}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan/40 bg-cyan/10 hover:bg-cyan/20 text-cyan text-xs font-bold tracking-wider transition-all shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+        >
+          <span>❓</span>
+          <span>HOW TO PLAY</span>
+        </button>
       </div>
     </header>
   )

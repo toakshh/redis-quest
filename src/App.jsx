@@ -13,6 +13,7 @@ import SettingsPanel from './components/SettingsPanel.jsx'
 import RexPanel from './components/RexPanel.jsx'
 import JuiceOverlay from './components/JuiceOverlay.jsx'
 import GameCanvas from './components/GameCanvas.jsx'
+import OnboardingModal, { hasCompletedOnboarding } from './components/OnboardingModal.jsx'
 
 // One shared engine for the whole app: the terminal executes through it, the
 // store inspects it for challenge/achievement validation, and the header +
@@ -36,10 +37,14 @@ const REX_TABS = [
 export default function App() {
   const [tab, setTab] = useState('memory')
   const [rexTab, setRexTab] = useState(false)
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false)
 
   // Bind the singleton engine to the game store once (idempotent in the store).
   useEffect(() => {
     useGameStore.getState().bindEngine(engine)
+    if (!hasCompletedOnboarding()) {
+      setIsOnboardingOpen(true)
+    }
   }, [])
 
   // Canonical command path: the store executes the line, updates game state
@@ -48,7 +53,7 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col relative">
-      <Header engine={engine} />
+      <Header engine={engine} onOpenTutorial={() => setIsOnboardingOpen(true)} />
 
       <div className="flex min-h-0 flex-1">
         {/* side panel: tabbed MEM / BOSS / AWARDS / SKILLS / COSMETICS / SETTINGS */}
@@ -148,6 +153,12 @@ export default function App() {
 
       {/* Juice overlay for particles, screen shake, flash, color grading */}
       <JuiceOverlay />
+
+      {/* Onboarding & Tutorial Modal */}
+      <OnboardingModal
+        isOpen={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
+      />
     </div>
   )
 }

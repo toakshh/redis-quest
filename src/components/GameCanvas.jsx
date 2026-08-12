@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { GameLoop } from '../game/GameLoop.js'
 import { World } from '../game/World.js'
 import { drawIsoTile, drawIsoBlock, gridToIso, isoToGrid, TILE_WIDTH, TILE_HEIGHT } from '../game/IsometricRenderer.js'
+import { IsometricEngineControls } from '../game/IsometricEngine.js'
 import { useGameStore } from '../store/gameStore.js'
 
 // Region map configurations for 2D Isometric Tilesets
@@ -126,35 +127,35 @@ export default function GameCanvas({ engine }) {
     setBattleMessage(`Entered ${map.name}`)
   }
 
-  // Keyboard controls (WASD / Arrows / Tilde for terminal)
+  // Keyboard & QWERTY Physical controls using IsometricEngineControls
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === '`' || e.key === '~') {
-        e.preventDefault()
-        setTerminalOpen((prev) => !prev)
-        return
-      }
+    const controls = new IsometricEngineControls({
+      onMove: (dx, dy) => movePlayer(dx, dy),
+      onInteract: () => interactCurrentTile(),
+      onToggleTerminal: () => setTerminalOpen((prev) => !prev),
+      isTerminalOpen: () => terminalOpen,
+    })
 
-      if (terminalOpen) return // ignore movement while typing in terminal
-
-      const p = playerRef.current
-      if (p.animProgress < 1) return // moving
-
-      let dx = 0
-      let dy = 0
-      if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') dy = -1
-      if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') dy = 1
-      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') dx = -1
-      if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') dx = 1
-
-      if (dx !== 0 || dy !== 0) {
-        movePlayer(dx, dy)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    controls.attach(window)
+    return () => controls.detach(window)
   }, [terminalOpen, selectedRegion, chests, enemies])
+
+  const interactCurrentTile = () => {
+    const p = playerRef.current
+    const chest = chests.find((c) => !c.looted && c.gx === Math.round(p.gx) && c.gy === Math.round(p.gy))
+    if (chest) {
+      chest.looted = true
+      if (!inventoryGems.includes(chest.gem)) {
+        setInventoryGems((prev) => [...prev, chest.gem])
+      }
+      setBattleMessage(`✨ Interacted! Acquired Command Gem: [ ${chest.gem} ]`)
+      if (engine) {
+        engine.execute(`SET ${chest.key} "${chest.value}"`)
+      }
+    } else {
+      setBattleMessage('Searched area... No nearby objects to interact with.')
+    }
+  }
 
   const movePlayer = (dx, dy) => {
     const map = REGION_MAPS[selectedRegion]
@@ -394,9 +395,26 @@ export default function GameCanvas({ engine }) {
         </div>
       </div>
 
-      {/* Main Canvas Viewport */}
-      <div className="relative flex-1 bg-slate-950 flex items-center justify-center overflow-hidden">
-        <canvas ref={canvasRef} width={800} height={500} className="w-full h-full max-w-[900px] max-h-[600px] object-contain" />
+      {/* Main Canvas Viewport - Expanded Full Width */}
+      <div className="relative flex-1 bg-slate-950 flex items-center justify-center overflow-hidden w-full h-full">
+        <canvas ref={canvasRef} width={1200} height={700} className="w-full h-full object-contain" />
+
+        {/* HUD Control Legends Overlay */}
+        <div className="absolute top-4 left-4 flex flex-col gap-1.5 p-3 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-xl text-xs font-mono text-slate-300 pointer-events-none z-10 shadow-lg">
+          <div className="text-[10px] font-bold text-cyan-400 tracking-widest uppercase mb-0.5">Controls HUD</div>
+          <div className="flex items-center gap-2">
+            <span className="bg-slate-800 border border-slate-700 text-cyan-300 px-1.5 py-0.5 rounded font-bold">W A S D</span>
+            <span>Move Hero</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="bg-slate-800 border border-slate-700 text-amber-300 px-1.5 py-0.5 rounded font-bold">E</span>
+            <span>Interact / Loot</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="bg-slate-800 border border-slate-700 text-emerald-300 px-1.5 py-0.5 rounded font-bold">~</span>
+            <span>CLI Terminal</span>
+          </div>
+        </div>
 
         {/* Battle / Interaction Banner */}
         {battleMessage && (
