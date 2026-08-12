@@ -30,6 +30,19 @@ const SIDE_TABS = [
   { id: 'settings', label: 'CONF', hint: 'config' },
 ]
 
+function getTabIcon(id) {
+  switch (id) {
+    case 'world': return '🗺️'
+    case 'memory': return '🔍'
+    case 'boss': return '⚔️'
+    case 'awards': return '🏆'
+    case 'skills': return '🌳'
+    case 'cosmetics': return '🎨'
+    case 'settings': return '⚙️'
+    default: return '📄'
+  }
+}
+
 export default function App() {
   const [tab, setTab] = useState('world')
   const [rexTab, setRexTab] = useState(false)
@@ -82,9 +95,9 @@ export default function App() {
       <div className="flex min-h-0 flex-1 relative overflow-hidden">
         {/* left side panel: tabbed WORLD / MEM / BOSS / AWARDS / SKILLS / COSMETICS / SETTINGS */}
         {!isFullscreen && (
-          <aside className="flex w-[300px] min-h-0 shrink-0 flex-col border-r border-edge xl:w-[340px] bg-panel/30">
+          <aside className="flex w-[200px] min-h-0 shrink-0 flex-col border-r border-edge xl:w-[240px] bg-panel/30">
             <nav
-              className="grid shrink-0 grid-cols-3 border-b border-edge"
+              className="flex flex-col shrink-0 border-b border-edge bg-panel/60"
               aria-label="Side panels"
             >
               {SIDE_TABS.map(({ id, label, hint }) => {
@@ -95,18 +108,16 @@ export default function App() {
                     type="button"
                     onClick={() => setTab(id)}
                     aria-pressed={active}
-                    className={`flex flex-col items-center gap-0.5 border-b-2 px-2 py-2 transition-colors ${
+                    className={`flex items-center justify-between px-3 py-2 border-b border-edge/50 transition-colors ${
                       active
-                        ? 'border-cyan bg-cyan/5 text-cyan'
-                        : 'border-transparent text-dim hover:bg-panel hover:text-fg'
+                        ? 'bg-cyan/10 text-cyan font-bold border-l-2 border-l-cyan'
+                        : 'text-slate-400 hover:bg-panel2 hover:text-slate-200 border-l-2 border-l-transparent'
                     }`}
                   >
-                    <span className="text-sm font-bold leading-none tracking-[0.2em]">
-                      {label}
-                    </span>
-                    <span className="text-[8px] tracking-[0.15em] uppercase opacity-70">
-                      {hint}
-                    </span>
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <span className="text-base shrink-0">{getTabIcon(id)}</span>
+                      <span className="text-xs tracking-[0.1em] truncate">{label}</span>
+                    </div>
                   </button>
                 )
               })}
@@ -115,10 +126,53 @@ export default function App() {
             <div className="min-h-0 flex-1">
               <div className="flex h-full flex-col">
                 {tab === 'world' && (
-                  <div className="p-4 text-xs text-dim space-y-2">
-                    <p className="font-bold text-cyan">WORLD VIEW ACTIVE</p>
-                    <p>The 2D Isometric RPG Canvas is currently active in the primary center view.</p>
-                    <p>Select another tab to inspect memory, battle bosses, manage skills, or configure settings.</p>
+                  <div className="p-3 text-xs space-y-3 overflow-y-auto max-h-full">
+                    <div className="border-b border-edge pb-1.5 flex justify-between items-center">
+                      <span className="font-bold text-cyan text-xs tracking-wider">🗺️ REGION SELECTOR</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan/10 text-cyan border border-cyan/30">5 REGIONS</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="p-2.5 rounded bg-slate-900 border border-cyan/40 space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-cyan text-xs">1. Memory Village</span>
+                          <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/40">ACTIVE</span>
+                        </div>
+                        <p className="text-[10px] text-slate-300">Ground zero for string commands and basic memory gates.</p>
+                      </div>
+
+                      <div className="p-2.5 rounded bg-slate-900 border border-slate-800 space-y-1 opacity-90 hover:border-slate-700">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-amber text-xs">2. Key-Value Kingdom</span>
+                          <span className="text-[9px] text-dim">LOCK: LVL 2</span>
+                        </div>
+                        <p className="text-[10px] text-slate-300">Hash maps, field operations, and structural key isolation.</p>
+                      </div>
+
+                      <div className="p-2.5 rounded bg-slate-900 border border-slate-800 space-y-1 opacity-90 hover:border-slate-700">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-emerald-400 text-xs">3. PubSub City</span>
+                          <span className="text-[9px] text-dim">LOCK: LVL 3</span>
+                        </div>
+                        <p className="text-[10px] text-slate-300">Real-time message broadcasting and stream subscription channels.</p>
+                      </div>
+
+                      <div className="p-2.5 rounded bg-slate-900 border border-slate-800 space-y-1 opacity-90 hover:border-slate-700">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-red-400 text-xs">4. Data Structure Dungeons</span>
+                          <span className="text-[9px] text-dim">LOCK: LVL 4</span>
+                        </div>
+                        <p className="text-[10px] text-slate-300">Lists, sets, sorted sets, and complex queue mechanics.</p>
+                      </div>
+
+                      <div className="p-2.5 rounded bg-slate-900 border border-slate-800 space-y-1 opacity-90 hover:border-slate-700">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-purple-400 text-xs">5. Cluster Galaxy</span>
+                          <span className="text-[9px] text-dim">LOCK: LVL 5</span>
+                        </div>
+                        <p className="text-[10px] text-slate-300">Multi-node sharding, slot hashing, and distributed memory limits.</p>
+                      </div>
+                    </div>
                   </div>
                 )}
                 {tab === 'memory' && <MemoryInspector engine={engine} className="flex-1 border-x-0" />}

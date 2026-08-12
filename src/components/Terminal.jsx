@@ -171,6 +171,30 @@ export default function Terminal({ engine, onSubmit, onExecute, onCloseDrawer })
   const endRef = useRef(null)
   const inputRef = useRef(null)
 
+  // Auto-completion suggestions matching current input prefix
+  const suggestions = input.trim() ? [
+    'SET key value',
+    'GET key',
+    'DEL key',
+    'EXPIRE key seconds',
+    'HSET key field value',
+    'HGET key field',
+    'HDEL key field',
+    'LPUSH key element',
+    'RPOP key',
+    'ZADD key score member',
+    'PUBLISH channel message',
+    'SUBSCRIBE channel',
+    'CLUSTER INFO',
+    'KEYS *',
+    'FLUSHALL',
+  ].filter(s => s.toLowerCase().startsWith(input.trim().toLowerCase())) : []
+
+  const handleSelectSuggestion = (s) => {
+    setInput(s.split(' ')[0] + ' ')
+    inputRef.current?.focus()
+  }
+
   useEffect(() => {
     endRef.current?.scrollIntoView?.({ block: 'end' })
   }, [output])
@@ -264,6 +288,25 @@ export default function Terminal({ engine, onSubmit, onExecute, onCloseDrawer })
         ))}
         <div ref={endRef} />
       </div>
+
+      {/* Autocomplete Suggestions Popup */}
+      {suggestions.length > 0 && input.trim().length > 0 && (
+        <div className="absolute bottom-full left-4 right-4 mb-1 p-2 bg-slate-900 border border-cyan/40 rounded-lg shadow-xl z-30 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+          <div className="w-full text-[9px] font-bold text-cyan uppercase tracking-wider mb-1">
+            Auto-Completion Suggestions:
+          </div>
+          {suggestions.map((s, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleSelectSuggestion(s)}
+              className="px-2 py-1 bg-slate-800 hover:bg-cyan/20 border border-slate-700 hover:border-cyan/50 text-cyan text-xs font-mono rounded transition-colors"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
 
       <form
         onSubmit={runCommand}
