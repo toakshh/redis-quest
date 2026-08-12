@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { registry } from '../engine/registry.js'
+import { useGameStore } from '../store/gameStore.js'
 
 // ---------------------------------------------------------------------------
 // Terminal — an interactive cyberpunk-styled redis-cli terminal.
@@ -168,11 +169,13 @@ export default function Terminal({ engine, onSubmit, onExecute, onCloseDrawer })
   const [cmdIndex, setCmdIndex] = useState(-1) // -1 = editing a fresh line
   const [draft, setDraft] = useState('') // saved input while browsing history
 
+  const terminalAutocomplete = useGameStore((s) => s.terminalAutocomplete !== false)
+
   const endRef = useRef(null)
   const inputRef = useRef(null)
 
   // Auto-completion suggestions matching current input prefix
-  const suggestions = input.trim() ? [
+  const suggestions = (terminalAutocomplete && input.trim()) ? [
     'SET key value',
     'GET key',
     'DEL key',
@@ -215,6 +218,11 @@ export default function Terminal({ engine, onSubmit, onExecute, onCloseDrawer })
   }
 
   const handleKeyDown = (event) => {
+    if (event.key === 'Tab' && suggestions.length > 0) {
+      event.preventDefault()
+      handleSelectSuggestion(suggestions[0])
+      return
+    }
     if (event.key === 'ArrowUp') {
       event.preventDefault()
       if (cmdHistory.length === 0) return

@@ -708,6 +708,13 @@ const initialState = () => ({
   survivalMode: null, // active survival seed id
   survivalProgress: {}, // seedId -> { wave, completed }
   survivalHistory: [], // { seedId, won, at, xp } records
+  // Settings
+  mode: 'beginner',
+  hintDepth: 'full',
+  visualGuides: true,
+  speedrunTimer: false,
+  terminalAutocomplete: true,
+  autoSaveInterval: 30000,
   // Skill tree
   skillPoints: 0, // unspent skill points (1 per level)
   unlockedSkills: [], // skill ids
@@ -1141,6 +1148,12 @@ export const useGameStore = create((set, get) => {
     unlockAchievement(id) {
       unlock(id)
     },
+    setMode(mode) { set({ mode }) },
+    setHintDepth(hintDepth) { set({ hintDepth }) },
+    setVisualGuides(visualGuides) { set({ visualGuides }) },
+    setSpeedrunTimer(speedrunTimer) { set({ speedrunTimer }) },
+    setTerminalAutocomplete(terminalAutocomplete) { set({ terminalAutocomplete }) },
+    setAutoSaveInterval(autoSaveInterval) { set({ autoSaveInterval }) },
     dismissToast(id) {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
     },
