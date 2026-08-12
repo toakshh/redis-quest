@@ -1,4 +1,5 @@
 import { useGameStore, ACHIEVEMENTS } from '../store/gameStore.js'
+import { RARITY_COLORS, RARITY_LABELS, CATEGORY_LABELS, CATEGORY_ICONS } from '../data/achievements.js'
 
 export default function Achievements({ className = '' }) {
   const unlocked = useGameStore((s) => s.unlocked)

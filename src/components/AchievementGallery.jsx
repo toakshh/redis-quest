@@ -1,4 +1,5 @@
-import { useGameStore, ACHIEVEMENTS, RARITY_COLORS, RARITY_LABELS, CATEGORY_LABELS, CATEGORY_ICONS } from '../store/gameStore.js'
+import { useGameStore } from '../store/gameStore.js'
+import { ACHIEVEMENTS, RARITY_COLORS, RARITY_LABELS, CATEGORY_LABELS, CATEGORY_ICONS } from '../data/achievements.js'
 
 const CATEGORIES = ['all', 'discovery', 'mastery', 'boss', 'exploration', 'meta']
 const RARITIES = ['all', 'common', 'uncommon', 'rare', 'epic', 'legendary']
