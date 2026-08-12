@@ -293,6 +293,20 @@ export class MockRedisEngine {
     this.emit('command', entry)
   }
 
+  // Silent execution: performs the command but does NOT broadcast the
+  // 'command' event. Used by boss/NPC scripts that inject keys or mutate
+  // state without the player earning XP or triggering command feedback.
+  silentExecute(command, ...args) {
+    this._silent = true
+    let reply
+    try {
+      reply = this._executeTokens([command, ...args])
+    } finally {
+      this._silent = false
+    }
+    return reply
+  }
+
   _executeTokens(tokens) {
     const name = String(tokens[0])
     const canon = name.toUpperCase()
@@ -311,6 +325,8 @@ export class MockRedisEngine {
       this.stats.totalErrors++
       this.emit('error')
       if (this.multiQueue) this.multiError = true
+      // broadcast so the companion/world can correct the syntax
+      this.emit('command', { name: canon, args: tokens, reply: arityErr })
       return arityErr
     }
 
@@ -339,6 +355,12 @@ export class MockRedisEngine {
       reply = errorReply(`ERR internal error: ${err.message}`)
     }
     if (reply && reply.type === 'error') this.stats.totalErrors++
+
+    // Broadcast every executed command so the game world, boss and companion
+    // can translate it into observable effects. Queued MULTI commands never
+    // reach here (they return QUEUED above). `args` mirrors what the handler
+    // received: [0] is the canonical command name.
+    this.emit('command', { name: canon, args: tokens, reply })
 
     return reply
   }

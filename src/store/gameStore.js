@@ -9,6 +9,9 @@
 // and read stats for achievement tracking.
 
 import { create } from 'zustand'
+import { load, save } from '../store/persistence.js'
+import { xpForCommand, comboCount, modeMultiplier, XP_BASE } from '../systems/XPSystem.js'
+import { SKILLS, purchasableSkills, canUnlockSkill } from '../systems/SkillTree.js'
 
 // ---------------------------------------------------------------------------
 // Catalogs
@@ -113,6 +116,26 @@ export function levelInfo(xp) {
 }
 
 // ---------------------------------------------------------------------------
+// Persistence helpers
+// ---------------------------------------------------------------------------
+
+function loadState() {
+  return {
+    mode: load('mode', 'beginner'),
+    tutorial: load('tutorial', { completed: false, currentStep: 0 }),
+    skills: load('skills', {}),
+    skillPoints: load('skillPoints', 0),
+  }
+}
+
+function saveState(state) {
+  save('mode', state.mode)
+  save('tutorial', state.tutorial)
+  save('skills', state.skills)
+  save('skillPoints', state.skillPoints)
+}
+
+// ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 
@@ -121,16 +144,27 @@ export function levelInfo(xp) {
 // are skipped — afterCommand runs exactly once, from runCommand.
 let handling = false
 
-const initialState = () => ({
-  engine: null,
-  xp: 0,
-  totalCommands: 0,
-  datatypesUsed: [], // registry group names: strings, hashes, lists, sets, zsets
-  boss: null, // null = not engaged; see startBattle for the shape
-  bossHistory: [], // { id, name, won, at, xp } records of completed battles
-  unlocked: {}, // achievement id -> timestamp
-  toasts: [], // undismissed unlock toasts ({...ACHIEVEMENTS, unlockedAt})
-})
+const initialState = () => {
+  const persisted = loadState()
+  return {
+    engine: null,
+    xp: 0,
+    totalCommands: 0,
+    datatypesUsed: [], // registry group names: strings, hashes, lists, sets, zsets
+    boss: null, // null = not engaged; see startBattle for the shape
+    bossHistory: [], // { id, name, won, at, xp } records of completed battles
+    unlocked: {}, // achievement id -> timestamp
+    toasts: [], // undismissed unlock toasts ({...ACHIEVEMENTS, unlockedAt})
+    // New state
+    mode: persisted.mode, // 'beginner' | 'pro'
+    tutorial: persisted.tutorial, // { completed: boolean, currentStep: number }
+    skills: persisted.skills, // { skillId: timestamp }
+    skillPoints: persisted.skillPoints, // available skill points to spend
+    recentCommands: [], // [{ name, ok, at }] for combo tracking
+    commandFirstUse: new Set(), // set of command names used successfully
+    lastReplyWasOk: false, // tracks previous command success for efficiency bonus
+  }
+}
 
 export const useGameStore = create((set, get) => {
   function unlock(id) {
@@ -153,6 +187,26 @@ export const useGameStore = create((set, get) => {
       if (DATATYPE_GROUPS.has(group)) used.add(group)
     }
     set({ totalCommands: stats.totalCommands, datatypesUsed: [...used] })
+  }
+
+  function checkLevelUp(oldXp, newXp) {
+    const oldLevel = Math.floor(oldXp / XP_PER_LEVEL)
+    const newLevel = Math.floor(newXp / XP_PER_LEVEL)
+    if (newLevel > oldLevel) {
+      // Grant 1 skill point per level gained
+      const pointsGained = newLevel - oldLevel
+      set((s) => ({ skillPoints: s.skillPoints + pointsGained }))
+      const newState = get()
+      saveState({ ...newState, skillPoints: newState.skillPoints + pointsGained })
+    }
+  }
+
+  function awardXp(amount) {
+    if (amount <= 0) return
+    const oldXp = get().xp
+    const newXp = oldXp + amount
+    set({ xp: newXp })
+    checkLevelUp(oldXp, newXp)
   }
 
   function attackBoss(damage, info = {}) {
@@ -240,6 +294,41 @@ export const useGameStore = create((set, get) => {
     checkBoss(reply)
   }
 
+  // Process a command result through the XP system
+  function processCommandXp(name, reply) {
+    const state = get()
+    const isFirstUse = !state.commandFirstUse.has(name)
+    const combo = comboCount(state.recentCommands)
+    const wasEfficient = state.lastReplyWasOk
+    const xp = xpForCommand({
+      name,
+      reply,
+      isFirstUse,
+      comboCount: combo,
+      wasEfficient,
+      mode: state.mode,
+    })
+
+    // Update recentCommands log (keep last 50 for combo tracking)
+    const newLog = [...state.recentCommands, { name, ok: reply?.type !== 'error', at: Date.now() }].slice(-50)
+
+    // Update commandFirstUse set
+    const newFirstUse = new Set(state.commandFirstUse)
+    if (isFirstUse && reply?.type !== 'error') {
+      newFirstUse.add(name)
+    }
+
+    set({
+      recentCommands: newLog,
+      commandFirstUse: newFirstUse,
+      lastReplyWasOk: reply?.type !== 'error',
+    })
+
+    if (xp > 0) {
+      awardXp(xp)
+    }
+  }
+
   return {
     ...initialState(),
 
@@ -248,6 +337,13 @@ export const useGameStore = create((set, get) => {
     bindEngine(engine) {
       if (get().engine) return
       set({ engine })
+
+      // Subscribe to command events for XP tracking
+      engine.on('command', ({ name, reply }) => {
+        if (handling) return
+        processCommandXp(name, reply)
+      })
+
       engine.on('change', () => {
         if (handling) return
         afterCommand()
@@ -275,7 +371,12 @@ export const useGameStore = create((set, get) => {
 
     attackBoss,
     addXp(amount) {
-      if (amount > 0) set((s) => ({ xp: s.xp + amount }))
+      if (amount > 0) {
+        const oldXp = get().xp
+        const newXp = oldXp + amount
+        set({ xp: newXp })
+        checkLevelUp(oldXp, newXp)
+      }
     },
 
     // Start (or restart) a boss battle. Quest keys are cleared so a rematch
@@ -316,6 +417,71 @@ export const useGameStore = create((set, get) => {
     },
     dismissToast(id) {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
+    },
+
+    // Mode management
+    setMode(mode) {
+      if (mode !== 'beginner' && mode !== 'pro') return
+      set((s) => {
+        const newState = { ...s, mode }
+        saveState(newState)
+        return newState
+      })
+    },
+
+    // Tutorial management
+    completeTutorialStep(step) {
+      set((s) => {
+        const newTutorial = {
+          ...s.tutorial,
+          currentStep: step,
+          completed: step >= 5, // assuming 5 tutorial steps total
+        }
+        const newState = { ...s, tutorial: newTutorial }
+        saveState(newState)
+        return newState
+      })
+    },
+
+    // Skill system
+    unlockSkill(skillId) {
+      const state = get()
+      const result = canUnlockSkill(skillId, {
+        skills: state.skills,
+        skillPoints: state.skillPoints,
+        regions: { 'memory-village': true }, // Only Memory Village unlocked for now
+      })
+
+      if (!result.ok) return { ok: false, reason: result.reason }
+
+      const skillDef = result.skill
+      const newSkills = { ...state.skills, [skillId]: Date.now() }
+      const newSkillPoints = state.skillPoints - skillDef.cost
+
+      set((s) => {
+        const newState = { ...s, skills: newSkills, skillPoints: newSkillPoints }
+        saveState(newState)
+        return newState
+      })
+
+      return { ok: true, skill: skillDef }
+    },
+
+    purchasableSkills() {
+      const state = get()
+      return purchasableSkills({
+        skills: state.skills,
+        skillPoints: state.skillPoints,
+        regions: { 'memory-village': true },
+      })
+    },
+
+    addSkillPoint() {
+      set((s) => {
+        const newState = { ...s, skillPoints: s.skillPoints + 1 }
+        saveState(newState)
+        return newState
+      })
     },
 
     // Test / new-game hook: wipe all game state. Does NOT touch the engine.
