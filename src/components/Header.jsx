@@ -33,6 +33,10 @@ function Meter({ pct, className }) {
 // so keys + memory always reflect what the terminal just did.
 export default function Header({ engine, className = '' }) {
   const xp = useGameStore((s) => s.xp)
+  const skillPoints = useGameStore((s) => s.skillPoints)
+  const unlockedSkills = useGameStore((s) => s.unlockedSkills)
+  const unlockedRegions = useGameStore((s) => s.unlockedRegions)
+  const mode = useGameStore((s) => s.mode)
   const [, force] = useState(0)
 
   useEffect(() => {
@@ -57,13 +61,16 @@ export default function Header({ engine, className = '' }) {
         ? 'bg-amber'
         : 'bg-cyan shadow-glow'
 
+  const skillsUnlocked = Object.keys(unlockedSkills).length
+  const regionsUnlocked = Object.keys(unlockedRegions).length
+
   return (
     <header
       className={`flex items-center justify-between gap-6 border-b border-edge bg-panel/60 px-6 py-3 ${className}`}
     >
       {/* brand */}
       <div className="flex items-center gap-3">
-        <span className="glow-text text-2xl font-bold text-cyan">&gt;_</span>
+        <span className="glow-text text-2xl font-bold text-cyan">{'>_'}</span>
         <div className="leading-tight">
           <h1 className="text-lg font-bold tracking-widest text-cyan">
             REDIS QUEST
@@ -105,6 +112,32 @@ export default function Header({ engine, className = '' }) {
             </span>
           </div>
           <Meter pct={memPct} className={memTone} />
+        </div>
+
+        <div className="h-8 w-px bg-edge" aria-hidden="true" />
+
+        {/* skill points */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[10px] tracking-[0.2em] text-amber">SP</span>
+            <span className="text-sm font-bold tabular-nums text-amber">{skillPoints}</span>
+          </div>
+          <Meter pct={(skillsUnlocked / 60) * 100} className="bg-amber shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
+        </div>
+
+        <div className="h-8 w-px bg-edge" aria-hidden="true" />
+
+        {/* regions & mode */}
+        <div className="flex flex-col gap-1.5 items-end">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[10px] tracking-[0.2em] text-purple">{regionsUnlocked}/12</span>
+            <span className="text-xs tabular-nums text-fg">REGIONS</span>
+          </div>
+          <span className={`text-[9px] tracking-[0.15em] uppercase px-2 py-0.5 rounded border ${
+            mode === 'pro' ? 'border-amber text-amber' : 'border-cyan text-cyan'
+          }`}>
+            {mode === 'pro' ? 'PRO' : 'BEGINNER'}
+          </span>
         </div>
       </div>
     </header>

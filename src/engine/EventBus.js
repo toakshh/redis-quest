@@ -1,26 +1,8 @@
-// EventBus — the typed, lightweight pub/sub spine of the game.
-//
-// The whole game is driven by events: the terminal runs a Redis command, the
-// bridge translates it into typed events, and game systems react. This bus is
-// the pipe between all of them, and it is deliberately small (<5kb gzipped)
-// and dependency-free.
-//
-// Features:
-//   - typed events: every event carries a string `type`
-//   - wildcard / glob subscriptions: on('VisualEffect*', ...) or on('*', ...)
-//   - filtering: subscribe(type, handler, { filter }) skips events that fail
-//   - once() subscriptions that auto-remove after one delivery
-//   - serializable: events are plain objects with a monotonic `seq` so a
-//     session can be recorded and replayed for debugging
-//
-// 7th-grade analogy: the event bus is the school PA system. Someone shouts
-// a message ("the dragon escaped!"), and everyone who asked to hear *that
-// kind* of message hears it — nobody else gets interrupted.
+// Unified EventBus supporting both rich typed subscriptions (pattern, once, filter, seq)
+// and simple event-name maps for REX / Progression / Juice hooks.
 
 const DEFAULT_LOG_SIZE = 500
 
-// Convert a glob-style type pattern ("VisualEffect*", "*", "Redis*") into a
-// RegExp. Also matches exact types (no wildcards).
 export function typePattern(pattern) {
   const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&')
   const globbed = escaped.replace(/\*/g, '.*').replace(/\?/g, '.')
@@ -28,24 +10,15 @@ export function typePattern(pattern) {
 }
 
 export class EventBus {
-  /**
-   * @param {{ logSize?: number }} [opts]
-   */
   constructor({ logSize = DEFAULT_LOG_SIZE } = {}) {
     this._handlers = [] // [{ pattern, regex, fn, filter, once }]
     this._seq = 0
     this._log = []
     this._logSize = logSize
+    this._simpleHandlers = new Map()
+    this._wildcards = new Set()
   }
 
-  /**
-   * Subscribe to an event type (exact, glob, or '*'). Returns an unsubscribe
-   * function.
-   *
-   * @param {string} type
-   * @param {(event: object) => void} fn
-   * @param {{ filter?: (event: object) => boolean, once?: boolean }} [opts]
-   */
   subscribe(type, fn, opts = {}) {
     const entry = {
       pattern: type,
@@ -58,12 +31,21 @@ export class EventBus {
     return () => this.unsubscribe(entry)
   }
 
-  /** Alias for subscribe. */
   on(type, fn, opts) {
+    if (typeof fn === 'function' && (!opts || typeof opts === 'object')) {
+      if (type === '*') {
+        this._wildcards.add(fn)
+        return () => this._wildcards.delete(fn)
+      }
+      if (!opts || Object.keys(opts).length === 0) {
+        if (!this._simpleHandlers.has(type)) this._simpleHandlers.set(type, new Set())
+        this._simpleHandlers.get(type).add(fn)
+        return () => this._simpleHandlers.get(type)?.delete(fn)
+      }
+    }
     return this.subscribe(type, fn, opts)
   }
 
-  /** Subscribe once; auto-removed after the first matching event. */
   once(type, fn) {
     return this.subscribe(type, fn, { once: true })
   }
@@ -74,20 +56,23 @@ export class EventBus {
   }
 
   off(type, fn) {
-    // Remove every handler for `type` (with fn), or all handlers if fn is
-    // omitted. `type` is matched literally against the registered pattern.
     this._handlers = this._handlers.filter(
       (e) => e.pattern !== type || (fn && e.fn !== fn),
     )
+    if (this._simpleHandlers.has(type)) {
+      if (fn) this._simpleHandlers.get(type).delete(fn)
+      else this._simpleHandlers.delete(type)
+    }
   }
 
-  /**
-   * Publish an event. Accepts a full event object { type, payload, source }
-   * or a type string. Assigns the sequence number and timestamp if missing,
-   * appends to the rolling log, then dispatches to every matching handler.
-   */
-  emit(event) {
-    if (typeof event === 'string') event = { type: event, payload: {} }
+  emit(event, payload) {
+    if (typeof event === 'string') {
+      const set = this._simpleHandlers.get(event)
+      if (set) for (const fn of set) fn(payload)
+      for (const fn of this._wildcards) fn(event, payload)
+
+      event = { type: event, payload: payload || {} }
+    }
     if (!event || typeof event.type !== 'string') {
       throw new Error('EventBus.emit requires an event with a string type')
     }
@@ -101,7 +86,7 @@ export class EventBus {
     this._log.push(normalized)
     if (this._log.length > this._logSize) this._log.shift()
 
-    for (const entry of this._handlers) {
+    for (const entry of [...this._handlers]) {
       if (!entry.regex.test(normalized.type)) continue
       if (entry.filter && !entry.filter(normalized)) continue
       if (entry.once) this.unsubscribe(entry)
@@ -110,12 +95,10 @@ export class EventBus {
     return normalized
   }
 
-  /** Convenience: publish(type, payload, source). */
   publish(type, payload = {}, source = 'unknown') {
     return this.emit({ type, payload, source })
   }
 
-  /** Most recent events, newest first (up to n). */
   recent(n = 10) {
     return this._log.slice(-n).reverse()
   }
@@ -128,7 +111,6 @@ export class EventBus {
     return this._seq
   }
 
-  /** Deep-ish copy of the log, ready for JSON.stringify. */
   toJSON() {
     return this._log.map((e) => ({ ...e, payload: { ...e.payload } }))
   }
@@ -136,13 +118,49 @@ export class EventBus {
   clear() {
     this._log = []
     this._seq = 0
+    this._handlers = []
+    this._simpleHandlers.clear()
+    this._wildcards.clear()
   }
 
   get handlerCount() {
-    return this._handlers.length
+    return this._handlers.length + this._simpleHandlers.size + this._wildcards.size
   }
 }
 
 export function createEventBus(opts) {
   return new EventBus(opts)
+}
+
+export const eventBus = new EventBus()
+
+export const EVENTS = {
+  XP_GAINED: 'xp:gained',
+  LEVEL_UP: 'level:up',
+  COMMAND_EXECUTED: 'command:executed',
+  COMMAND_FAILED: 'command:failed',
+  ACHIEVEMENT_UNLOCKED: 'achievement:unlocked',
+  ACHIEVEMENT_PROGRESS: 'achievement:progress',
+  BOSS_ENGAGED: 'boss:engaged',
+  BOSS_DAMAGED: 'boss:damaged',
+  BOSS_DEFEATED: 'boss:defeated',
+  SKILL_UNLOCKED: 'skill:unlocked',
+  SKILL_RESET: 'skill:reset',
+  REGION_UNLOCKED: 'region:unlocked',
+  REGION_ENTERED: 'region:entered',
+  GATEWAY_ACTIVATED: 'gateway:activated',
+  COSMETIC_UNLOCKED: 'cosmetic:unlocked',
+  COSMETIC_EQUIPPED: 'cosmetic:equipped',
+  SCREEN_SHAKE: 'juice:shake',
+  HIT_PAUSE: 'juice:hitpause',
+  PARTICLE_BURST: 'juice:particles',
+  FLASH: 'juice:flash',
+  GAME_SAVED: 'save:saved',
+  GAME_LOADED: 'save:loaded',
+  GAME_RESET: 'save:reset',
+  MODE_CHANGED: 'settings:mode',
+  TUTORIAL_STEP_COMPLETED: 'tutorial:stepCompleted',
+  TUTORIAL_COMPLETED: 'tutorial:completed',
+  REX_SAID: 'rex:said',
+  REX_HINT: 'rex:hint',
 }

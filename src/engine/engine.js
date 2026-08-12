@@ -325,7 +325,7 @@ export class MockRedisEngine {
       this.stats.totalErrors++
       this.emit('error')
       if (this.multiQueue) this.multiError = true
-      // broadcast so the companion/world can correct the syntax
+      // Broadcast so the game world / REX companion can coach the syntax.
       this.emit('command', { name: canon, args: tokens, reply: arityErr })
       return arityErr
     }
@@ -374,6 +374,84 @@ export class MockRedisEngine {
   emit(event, payload) {
     this.emitter.emit(event, payload)
   }
+
+  // ---- persistence -------------------------------------------------------
+
+  // JSON-safe snapshot of everything worth persisting. Container values (hash
+  // fields, set members) are tagged so restore can rebuild the right types;
+  // the remaining data is already plain JSON. Live internals (_cache, timers,
+  // the emitter, injected clocks) are deliberately excluded and rebuilt.
+  snapshot() {
+    const databases = {}
+    for (const [dbIndex, db] of this.databases) {
+      const entries = {}
+      for (const [key, entry] of db) {
+        entries[key] = {
+          type: entry.type,
+          expiresAt: entry.expiresAt,
+          version: entry.version,
+          lruTick: entry.lruTick,
+          value: serializeEntryValue(entry.value),
+        }
+      }
+      databases[dbIndex] = entries
+    }
+    return {
+      databases,
+      activeDb: this.activeDb,
+      stats: { ...this.stats },
+      multiQueue: this.multiQueue ? this.multiQueue.map((line) => [...line]) : null,
+      multiError: this.multiError,
+      watchedKeys: this.watchedKeys ? [...this.watchedKeys.entries()] : [],
+      scriptCache: this.scriptCache ? [...this.scriptCache.entries()] : [],
+      subscribers: this.subscribers
+        ? [...this.subscribers.entries()].map(([channel, conns]) => [channel, [...conns]])
+        : [],
+      connectionId: this.connectionId,
+      memoryLimit: this.memoryLimit,
+    }
+  }
+
+  // Restore state previously produced by snapshot(). Any current state is
+  // replaced wholesale.
+  restore(snap) {
+    this.databases = new Map()
+    for (const [dbIndex, entries] of Object.entries(snap.databases ?? {})) {
+      const db = new Map()
+      for (const [key, entry] of Object.entries(entries)) {
+        db.set(key, {
+          type: entry.type,
+          value: deserializeEntryValue(entry.value),
+          expiresAt: entry.expiresAt,
+          version: entry.version,
+          lruTick: entry.lruTick,
+        })
+      }
+      this.databases.set(Number(dbIndex), db)
+    }
+    this.activeDb = snap.activeDb ?? 0
+    this.stats = { ...this.stats, ...(snap.stats ?? {}) }
+    this.multiQueue = snap.multiQueue ? snap.multiQueue.map((line) => [...line]) : null
+    this.multiError = Boolean(snap.multiError)
+    this.watchedKeys = new Map(snap.watchedKeys ?? [])
+    this.scriptCache = new Map(snap.scriptCache ?? [])
+    this.subscribers = new Map((snap.subscribers ?? []).map(([ch, conns]) => [ch, new Set(conns)]))
+    if (typeof snap.memoryLimit === 'number') this.memoryLimit = snap.memoryLimit
+    this._cache = { memoryBytes: 0, dirty: true }
+    return this
+  }
+}
+
+function serializeEntryValue(value) {
+  if (value instanceof Map) return { __t: 'map', v: [...value] }
+  if (value instanceof Set) return { __t: 'set', v: [...value] }
+  return value
+}
+
+function deserializeEntryValue(value) {
+  if (value && typeof value === 'object' && value.__t === 'map') return new Map(value.v)
+  if (value && typeof value === 'object' && value.__t === 'set') return new Set(value.v)
+  return value
 }
 
 const TRANSACTION_CONTROL = new Set(['MULTI', 'EXEC', 'DISCARD', 'WATCH', 'UNWATCH', 'RESET'])
