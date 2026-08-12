@@ -125,7 +125,7 @@ export class MockRedisEngine {
       if (existing.type !== type) return { wrongType: true }
       return { entry: existing }
     }
-    const entry = { type, value: null, expiresAt: null, version: 0, lruTick: 0 }
+    const entry = { type, value: null, expiresAt: null, version: 0, lruTick: 0, lruTickTime: this.now() }
     this.store.set(key, entry)
     this.stats.keysCreated++
     this._cache.dirty = true
@@ -142,11 +142,13 @@ export class MockRedisEngine {
 
   _touch(key, entry) {
     entry.lruTick = this.stats.totalCommands
+    entry.lruTickTime = this.now()
   }
 
   _bump(key, entry) {
     entry.version++
     entry.lruTick = this.stats.totalCommands
+    entry.lruTickTime = this.now()
     this._cache.dirty = true
   }
 

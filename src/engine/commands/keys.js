@@ -13,6 +13,32 @@ import {
 } from '../reply.js'
 import { makeGlobMatcher } from '../datatypes/glob.js'
 
+// Parse expire options: NX, XX, GT, LT
+function parseExpireOptions(args, startIndex) {
+  const options = { nx: false, xx: false, gt: false, lt: false }
+  for (let i = startIndex; i < args.length; i++) {
+    const opt = args[i].toUpperCase()
+    if (opt === 'NX') options.nx = true
+    else if (opt === 'XX') options.xx = true
+    else if (opt === 'GT') options.gt = true
+    else if (opt === 'LT') options.lt = true
+    else return null // invalid option
+  }
+  // Check for conflicting options
+  const count = [options.nx, options.xx, options.gt, options.lt].filter(Boolean).length
+  if (count > 1) return null
+  return options
+}
+
+// Check if we should set expiry based on options and current entry state
+function shouldSetExpiry(entry, options, newExpiresAt) {
+  if (options.nx && entry.expiresAt !== null) return false
+  if (options.xx && entry.expiresAt === null) return false
+  if (options.gt && (entry.expiresAt === null || newExpiresAt <= entry.expiresAt)) return false
+  if (options.lt && (entry.expiresAt === null || newExpiresAt >= entry.expiresAt)) return false
+  return true
+}
+
 export const DEL = cmd({
   arity: -2,
   syntax: 'DEL key [key ...]',
@@ -254,4 +280,147 @@ export const FLUSHALL = cmd({
   engine._cache.dirty = true
   engine.emit('change')
   return okReply()
+})
+
+export const EXPIREAT = cmd({
+  arity: -3,
+  syntax: 'EXPIREAT key timestamp [NX|XX|GT|LT]',
+  summary: 'Set the expiration for a key as a Unix timestamp (seconds). Options: NX=set only if no expiry, XX=set only if expiry exists, GT=only if new > current, LT=only if new < current.',
+  group: 'keys',
+  examples: ['EXPIREAT key 1735689600', 'EXPIREAT key 1735689600 NX'],
+})((engine, args) => {
+  const [, key, timestamp, ...opts] = args
+  const ts = intValue(timestamp)
+  if (ts === null) return invalidInt(timestamp)
+  const options = parseExpireOptions(opts, 0)
+  if (options === null) return errorReply('ERR syntax error')
+  const entry = engine._get(key)
+  if (!entry) return integerReply(0)
+  const newExpiresAt = ts * 1000
+  if (newExpiresAt <= engine.now()) {
+    engine._delete(key)
+    engine.emit('change')
+    return integerReply(1)
+  }
+  if (!shouldSetExpiry(entry, options, newExpiresAt)) return integerReply(0)
+  entry.expiresAt = newExpiresAt
+  engine._bump(key, entry)
+  engine.emit('change')
+  return integerReply(1)
+})
+
+export const PEXPIREAT = cmd({
+  arity: -3,
+  syntax: 'PEXPIREAT key milliseconds-timestamp [NX|XX|GT|LT]',
+  summary: 'Set the expiration for a key as a Unix timestamp in milliseconds. Options: NX=set only if no expiry, XX=set only if expiry exists, GT=only if new > current, LT=only if new < current.',
+  group: 'keys',
+  examples: ['PEXPIREAT key 1735689600000', 'PEXPIREAT key 1735689600000 NX'],
+})((engine, args) => {
+  const [, key, timestamp, ...opts] = args
+  const ts = intValue(timestamp)
+  if (ts === null) return invalidInt(timestamp)
+  const options = parseExpireOptions(opts, 0)
+  if (options === null) return errorReply('ERR syntax error')
+  const entry = engine._get(key)
+  if (!entry) return integerReply(0)
+  const newExpiresAt = ts
+  if (newExpiresAt <= engine.now()) {
+    engine._delete(key)
+    engine.emit('change')
+    return integerReply(1)
+  }
+  if (!shouldSetExpiry(entry, options, newExpiresAt)) return integerReply(0)
+  entry.expiresAt = newExpiresAt
+  engine._bump(key, entry)
+  engine.emit('change')
+  return integerReply(1)
+})
+
+export const SCAN = cmd({
+  arity: -2,
+  syntax: 'SCAN cursor [MATCH pattern] [COUNT count] [TYPE type]',
+  summary: 'Incrementally iterate the keyspace. Returns [cursor, [keys]].',
+  group: 'keys',
+  examples: ['SCAN 0', 'SCAN 0 MATCH user:* COUNT 10'],
+})((engine, args) => {
+  // Parse arguments
+  let cursor = 0
+  let pattern = '*'
+  let count = 10
+  let typeFilter = null
+
+  // First arg after SCAN is cursor
+  if (args.length < 2) return errorReply('ERR wrong number of arguments for \'SCAN\' command')
+  cursor = intValue(args[1])
+  if (cursor === null || cursor < 0) return errorReply('ERR invalid cursor')
+
+  // Parse remaining options
+  for (let i = 2; i < args.length; i++) {
+    const opt = args[i].toUpperCase()
+    if (opt === 'MATCH' && i + 1 < args.length) {
+      pattern = args[++i]
+    } else if (opt === 'COUNT' && i + 1 < args.length) {
+      const c = intValue(args[++i])
+      if (c === null || c <= 0) return errorReply('ERR invalid count')
+      count = c
+    } else if (opt === 'TYPE' && i + 1 < args.length) {
+      typeFilter = args[++i].toLowerCase()
+    } else {
+      return errorReply('ERR syntax error')
+    }
+  }
+
+  const matcher = makeGlobMatcher(pattern)
+  const allKeys = []
+  for (const key of [...engine.store.keys()]) {
+    // _get lazily drops expired keys so they never show up in the scan
+    const entry = engine._get(key)
+    if (entry !== null && matcher(key)) {
+      if (!typeFilter || entry.type === typeFilter) {
+        allKeys.push(key)
+      }
+    }
+  }
+
+  // Sort keys for deterministic cursor behavior
+  allKeys.sort()
+
+  // Simple cursor implementation: cursor is an index into the sorted array
+  // cursor 0 means start, return next cursor as string
+  const startIndex = cursor
+  const endIndex = Math.min(startIndex + count, allKeys.length)
+  const keys = allKeys.slice(startIndex, endIndex)
+  const nextCursor = endIndex >= allKeys.length ? '0' : String(endIndex)
+
+  return arrayReply([bulkReply(nextCursor), arrayReply(keys.map(bulkReply))])
+})
+
+export const OBJECT = cmd({
+  arity: -2,
+  syntax: 'OBJECT subcommand [key]',
+  summary: 'Inspect the internals of Redis objects. Supported: IDLETIME, FREQ.',
+  group: 'keys',
+  examples: ['OBJECT IDLETIME key', 'OBJECT FREQ key'],
+})((engine, args) => {
+  if (args.length < 2) return errorReply('ERR wrong number of arguments for \'OBJECT\' command')
+  const subcommand = args[1].toUpperCase()
+
+  if (subcommand === 'IDLETIME') {
+    if (args.length !== 3) return errorReply('ERR wrong number of arguments for \'OBJECT\' command')
+    const entry = engine._get(args[2])
+    if (!entry) return nilReply()
+    const idle = Math.floor((engine.now() - (entry.lruTickTime || engine.now())) / 1000)
+    return integerReply(idle)
+  }
+
+  if (subcommand === 'FREQ') {
+    if (args.length !== 3) return errorReply('ERR wrong number of arguments for \'OBJECT\' command')
+    const entry = engine._get(args[2])
+    if (!entry) return nilReply()
+    // Return a dummy LFU counter (real Redis uses LFU with Morris counter)
+    // For simplicity, return a fixed value or based on version
+    return integerReply(10)
+  }
+
+  return errorReply(`ERR unknown subcommand '${subcommand}'`)
 })
