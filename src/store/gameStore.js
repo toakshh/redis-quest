@@ -9,6 +9,9 @@
 // and read stats for achievement tracking.
 
 import { create } from 'zustand'
+import { RARITY_COLORS, RARITY_LABELS, CATEGORY_LABELS, CATEGORY_ICONS } from '../data/achievements.js'
+
+export { RARITY_COLORS, RARITY_LABELS, CATEGORY_LABELS, CATEGORY_ICONS }
 
 // ---------------------------------------------------------------------------
 // Catalogs
