@@ -12,8 +12,10 @@ import SettingsPanel from './components/SettingsPanel.jsx'
 import RexPanel from './components/RexPanel.jsx'
 import JuiceOverlay from './components/JuiceOverlay.jsx'
 import GameCanvas from './components/GameCanvas.jsx'
+import InventoryModal from './components/InventoryModal.jsx'
 import OnboardingModal, { hasCompletedOnboarding } from './components/OnboardingModal.jsx'
 import UITourModal from './components/UITourModal.jsx'
+import { soundEngine } from './audio/SoundEngine.js'
 
 // One shared engine for the whole app: the terminal executes through it, the
 // store inspects it for challenge/achievement validation, and the header +
@@ -50,10 +52,12 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false)
   const [isTourOpen, setIsTourOpen] = useState(false)
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false)
 
   // Bind the singleton engine to the game store once (idempotent in the store).
   useEffect(() => {
     useGameStore.getState().bindEngine(engine)
+    soundEngine.playBGM()
     if (!hasCompletedOnboarding()) {
       setIsOnboardingOpen(true)
     }
@@ -62,6 +66,13 @@ export default function App() {
   // Keyboard shortcut listener for ~ key to toggle terminal drawer
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (e.key === 'i' || e.key === 'I') {
+        const activeEl = document.activeElement
+        const isInput = activeEl && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName)
+        if (!isInput) {
+          setIsInventoryOpen((prev) => !prev)
+        }
+      }
       if (e.key === '`' || e.key === '~') {
         const activeEl = document.activeElement
         const isInput = activeEl && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName)
@@ -247,6 +258,15 @@ export default function App() {
           {/* Terminal Drawer Toggle Button */}
           <button
             type="button"
+            onClick={() => setIsInventoryOpen(true)}
+            aria-label="Open Inventory"
+            className="w-12 h-12 rounded-full border-2 border-edge bg-panel/80 text-dim hover:border-cyan/50 hover:text-cyan flex items-center justify-center text-xl transition-all duration-300 pointer-events-auto"
+          >
+            🎒
+          </button>
+          
+          <button
+            type="button"
             onClick={() => setTerminalDrawerOpen(!terminalDrawerOpen)}
             aria-expanded={terminalDrawerOpen}
             aria-label={terminalDrawerOpen ? 'Hide Terminal Drawer' : 'Show Terminal Drawer'}
@@ -300,6 +320,11 @@ export default function App() {
       <UITourModal
         isOpen={isTourOpen}
         onClose={() => setIsTourOpen(false)}
+      />
+
+      <InventoryModal
+        isOpen={isInventoryOpen}
+        onClose={() => setIsInventoryOpen(false)}
       />
     </div>
   )

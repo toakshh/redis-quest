@@ -715,6 +715,11 @@ const initialState = () => ({
   speedrunTimer: false,
   terminalAutocomplete: true,
   autoSaveInterval: 30000,
+  // Audio
+  bgmEnabled: true,
+  sfxEnabled: true,
+  bgmVolume: 0.5,
+  sfxVolume: 0.7,
   // Objective banner visibility state
   objectiveBannerDismissed: false,
   // Skill tree
@@ -1163,6 +1168,12 @@ export const useGameStore = create((set, get) => {
     dismissToast(id) {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
     },
+
+    // Audio
+    setBgmEnabled(bgmEnabled) { set({ bgmEnabled }) },
+    setSfxEnabled(sfxEnabled) { set({ sfxEnabled }) },
+    setBgmVolume(bgmVolume) { set({ bgmVolume }) },
+    setSfxVolume(sfxVolume) { set({ sfxVolume }) },
 
     // Region progression
     getRegion,

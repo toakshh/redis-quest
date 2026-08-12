@@ -152,11 +152,19 @@ export default function SettingsPanel({ className = '' }) {
     speedrunTimer,
     terminalAutocomplete,
     autoSaveInterval,
+    bgmEnabled,
+    sfxEnabled,
+    bgmVolume,
+    sfxVolume,
     setMode,
     setHintDepth,
     setVisualGuides,
     setSpeedrunTimer,
     setTerminalAutocomplete,
+    setBgmEnabled,
+    setSfxEnabled,
+    setBgmVolume,
+    setSfxVolume,
     saveGame,
     loadGame,
     resetGame,
@@ -258,6 +266,38 @@ export default function SettingsPanel({ className = '' }) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {/* Audio Section */}
+        <section className="panel p-4">
+          <h3 className="flex items-center gap-2 text-sm font-bold tracking-widest text-fg mb-4">
+            <span className="text-lg">🔊</span> Audio
+          </h3>
+          <div className="space-y-3">
+            <SettingToggle
+              label="Background Music"
+              description="Toggle ambient chiptune background music"
+              enabled={bgmEnabled}
+              onChange={setBgmEnabled}
+              icon="🎵"
+            />
+            <div className="p-3 bg-panel2 rounded border border-edge">
+              <label className="text-xs text-dim mb-1 block">BGM Volume</label>
+              <input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={e => setBgmVolume(parseFloat(e.target.value))} className="w-full" />
+            </div>
+            
+            <SettingToggle
+              label="Sound Effects"
+              description="Toggle retro sound effects"
+              enabled={sfxEnabled}
+              onChange={setSfxEnabled}
+              icon="🔊"
+            />
+            <div className="p-3 bg-panel2 rounded border border-edge">
+              <label className="text-xs text-dim mb-1 block">SFX Volume</label>
+              <input type="range" min="0" max="1" step="0.1" value={sfxVolume} onChange={e => setSfxVolume(parseFloat(e.target.value))} className="w-full" />
+            </div>
+          </div>
+        </section>
+
         {/* Game Mode Section */}
         <section className="panel p-4">
           <h3 className="flex items-center gap-2 text-sm font-bold tracking-widest text-fg mb-4">

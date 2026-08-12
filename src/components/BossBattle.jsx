@@ -1,4 +1,6 @@
 import { useGameStore, levelInfo } from '../store/gameStore.js'
+import { soundEngine } from '../audio/SoundEngine.js'
+import { useEffect } from 'react'
 
 // ASCII portrait for the sentinel. Drawn with String.raw so backslashes render
 // literally; only safe terminal glyphs are used.
@@ -24,6 +26,12 @@ export default function BossBattle({ className = '' }) {
   const boss = useGameStore((s) => s.boss)
   const xp = useGameStore((s) => s.xp)
   const startBattle = useGameStore((s) => s.startBattle)
+
+  useEffect(() => {
+    if (boss?.defeated) {
+      soundEngine.playSFX('victory')
+    }
+  }, [boss?.defeated])
 
   const { level, xpIntoLevel, xpForNext } = levelInfo(xp)
 
@@ -75,9 +83,10 @@ export default function BossBattle({ className = '' }) {
           <pre className="select-none text-[10px] leading-tight text-green glow-text-green">
             {SERPENT_ASCII}
           </pre>
-          <h2 className="glow-text-green text-lg font-bold tracking-[0.35em] text-green">
+          <h2 className="glow-text-green text-lg font-bold tracking-[0.35em] text-green animate-pulse">
             DATA SECURED
           </h2>
+          <div className="text-[30px] animate-bounce">🎊</div>
           <p className="text-[11px] text-dim">
             {boss.name} is dismantled. The vault yields{' '}
             <span className="text-green">+{result.xp} XP</span>.
@@ -88,6 +97,13 @@ export default function BossBattle({ className = '' }) {
             onClick={() => startBattle()}
           >
             REBATTLE
+          </button>
+          <button
+            type="button"
+            className="btn-secondary mt-1"
+            onClick={() => console.log("Next region!")}
+          >
+            NEXT REGION
           </button>
         </div>
       </div>
