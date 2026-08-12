@@ -5,6 +5,42 @@ import { drawIsoTile, drawIsoBlock, gridToIso, isoToGrid, TILE_WIDTH, TILE_HEIGH
 import { IsometricEngineControls } from '../game/IsometricEngine.js'
 import { useGameStore } from '../store/gameStore.js'
 
+// Compute where an offscreen objective marker should sit on the viewport edge.
+// Uses the same tile-to-screen math as the render loop (centered on the canvas).
+function offscreenEdge(t, mapWidth, mapHeight, canvas) {
+  const cw = canvas?.clientWidth ?? 1200
+  const ch = canvas?.clientHeight ?? 700
+  const margin = 8
+  const pad = 24
+
+  // Rough on-screen bounds of the tile grid (iso diamonds extend beyond the math center)
+  const left = cw / 2 - ((mapWidth + mapHeight) / 2) * (TILE_WIDTH / 2) - pad
+  const right = cw / 2 + ((mapWidth + mapHeight) / 2) * (TILE_WIDTH / 2) + pad
+  const top = 120 - ((mapWidth + mapHeight) / 2) * (TILE_HEIGHT / 2) - pad
+  const bottom = 120 + ((mapWidth + mapHeight) / 2) * (TILE_HEIGHT / 2) + pad
+
+  const x = t.x + (cw / 2 - t.x) * 0.98
+  const y = t.y + (ch / 2 - t.y) * 0.98
+
+  // Normalized direction from canvas center to the target
+  const dx = x - cw / 2
+  const dy = y - ch / 2
+  const len = Math.max(1e-6, Math.sqrt(dx * dx + dy * dy))
+
+  let ex = cw / 2 + (dx / len) * (cw / 2 - margin)
+  let ey = ch / 2 + (dy / len) * (ch / 2 - margin)
+
+  // If the point is inside the visible map area, no edge marker is needed
+  if (x > left && x < right && y > top && y < bottom) return null
+
+  // Clamp to viewport edges
+  ex = Math.max(margin, Math.min(cw - margin - 90, ex))
+  ey = Math.max(110, Math.min(ch - margin - 24, ey))
+
+  const dir = dx === 0 && dy === 0 ? '' : `${dx >= 0 ? '→' : '←'}${Math.abs(dy) > Math.abs(dx) ? (dy >= 0 ? '↓' : '↑') : ''}`
+  return { x: ex, y: ey, dir }
+}
+
 // Region map configurations for 2D Isometric Tilesets
 export const REGION_MAPS = {
   'memory-village': {
@@ -225,6 +261,20 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     }
   }
 
+  // Quest objective completion check: all chests looted + all enemies defeated
+  const activeEnemyCount = enemies.filter((e) => e.hp > 0).length
+  const unlootedChestCount = chests.filter((c) => !c.looted).length
+  const questComplete = activeEnemyCount === 0 && unlootedChestCount === 0
+
+  // Map tile screenspace coordinates for HUD markers (mirrors the render loop math)
+  const getTileScreenPos = (gx, gy, canvas) => {
+    const map = REGION_MAPS[selectedRegion]
+    const offsetX = (canvas?.width ?? 1200) / 2
+    const offsetY = 120
+    const iso = gridToIso(Math.max(0, Math.min(map.width - 1, gx)), Math.max(0, Math.min(map.height - 1, gy)))
+    return { x: offsetX + iso.x, y: offsetY + iso.y, mapWidth: map.width, mapHeight: map.height }
+  }
+
   // Handle in-game diegetic terminal command submit
   const handleTerminalSubmit = (e) => {
     e.preventDefault()
@@ -310,6 +360,34 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
           ctx.beginPath()
           ctx.arc(screenX, screenY - 14, 4, 0, Math.PI * 2)
           ctx.fill()
+
+          // Pulsing quest marker arrow above unlooted chest
+          const pulse = Math.sin(Date.now() / 250) * 0.5 + 0.5
+          const bounce = -22 - pulse * 6
+          ctx.save()
+          ctx.globalAlpha = 0.6 + pulse * 0.4
+          ctx.strokeStyle = '#fde047'
+          ctx.fillStyle = '#fde047'
+          ctx.lineWidth = 2
+          // Flag pole
+          ctx.beginPath()
+          ctx.moveTo(screenX, screenY - 20)
+          ctx.lineTo(screenX, screenY - 20 + bounce)
+          ctx.stroke()
+          // Arrow head
+          const headY = screenY - 22 + bounce
+          ctx.beginPath()
+          ctx.moveTo(screenX, headY - 9)
+          ctx.lineTo(screenX - 5, headY)
+          ctx.lineTo(screenX + 5, headY)
+          ctx.closePath()
+          ctx.fill()
+          // Glow halo ring
+          ctx.strokeStyle = `rgba(253, 224, 71, ${0.25 + pulse * 0.25})`
+          ctx.beginPath()
+          ctx.arc(screenX, screenY - 10, 18 + pulse * 6, 0, Math.PI * 2)
+          ctx.stroke()
+          ctx.restore()
         }
       })
 
@@ -335,6 +413,34 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         // Health bar fill
         ctx.fillStyle = '#22c55e'
         ctx.fillRect(screenX - 16, screenY - 28, (enemy.hp / enemy.maxHp) * 32, 4)
+
+        // Pulsing quest marker arrow above active enemy
+        const pulse = Math.sin(Date.now() / 220 + enemy.gx * 0.5) * 0.5 + 0.5
+        const bounce = -30 - pulse * 5
+        ctx.save()
+        ctx.globalAlpha = 0.6 + pulse * 0.4
+        ctx.strokeStyle = '#f87171'
+        ctx.fillStyle = '#f87171'
+        ctx.lineWidth = 2
+        // Flag pole
+        ctx.beginPath()
+        ctx.moveTo(screenX, screenY - 34)
+        ctx.lineTo(screenX, screenY - 34 + bounce)
+        ctx.stroke()
+        // Arrow head
+        const headY = screenY - 36 + bounce
+        ctx.beginPath()
+        ctx.moveTo(screenX, headY - 9)
+        ctx.lineTo(screenX - 5, headY)
+        ctx.lineTo(screenX + 5, headY)
+        ctx.closePath()
+        ctx.fill()
+        // Warning halo
+        ctx.strokeStyle = `rgba(248, 113, 113, ${0.3 + pulse * 0.3})`
+        ctx.beginPath()
+        ctx.arc(screenX, screenY - 12, 24 + pulse * 6, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.restore()
       })
 
       // Draw Player Avatar (REX / Hero)
@@ -424,22 +530,106 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       <div className="relative flex-1 bg-slate-950 flex items-center justify-center overflow-hidden w-full h-full">
         <canvas ref={canvasRef} width={1200} height={700} className="w-full h-full object-contain" />
 
-        {/* HUD Control Legends Overlay */}
-        <div className="absolute top-4 left-4 flex flex-col gap-1.5 p-3 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-xl text-xs font-mono text-slate-300 pointer-events-none z-10 shadow-lg">
+        {/* Quest Objective Banner - prominent top guidance */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 max-w-[92%] w-fit px-4 py-2 bg-gradient-to-r from-cyan-950/95 via-slate-900/95 to-cyan-950/95 backdrop-blur border border-cyan-500/50 rounded-xl shadow-[0_0_24px_rgba(34,211,238,0.25)] z-20">
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[10px] sm:text-[11px] font-mono text-cyan-200 leading-snug">
+            <span className="font-black tracking-widest text-cyan-300">🎯 ACTIVE QUEST:</span>
+            <span className="text-slate-200">Move Hero using</span>
+            <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/40 text-cyan-300 font-bold">WASD</span>
+            <span className="text-slate-200">→ Walk to glowing</span>
+            <span className="px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-400/50 text-amber-300 font-bold">Chest</span>
+            <span className="text-slate-200">→ Press</span>
+            <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-amber-400/50 text-amber-300 font-bold">E</span>
+            <span className="text-slate-200">to open chest & acquire</span>
+            <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/50 text-emerald-300 font-bold">Command Gems</span>
+            <span className="text-slate-200">→ Defeat enemies using</span>
+            <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/50 text-emerald-300 font-bold">Gem Hotbar</span>
+            <span className="text-slate-200">/</span>
+            <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-amber-400/50 text-amber-300 font-bold">CLI Terminal (~)</span>
+            {questComplete && (
+              <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/60 text-emerald-300 font-black animate-pulse">✔ QUEST COMPLETE!</span>
+            )}
+          </div>
+        </div>
+
+        {/* HUD Control Legends Overlay - interactive */}
+        <div className="absolute top-16 left-4 flex flex-col gap-1 p-2.5 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-xl text-[11px] font-mono text-slate-300 z-10 shadow-lg">
           <div className="text-[10px] font-bold text-cyan-400 tracking-widest uppercase mb-0.5">Controls HUD</div>
           <div className="flex items-center gap-2">
-            <span className="bg-slate-800 border border-slate-700 text-cyan-300 px-1.5 py-0.5 rounded font-bold">W A S D</span>
+            <button
+              onClick={() => movePlayer(-1, 0)}
+              title="Press W A S D to move the hero"
+              className="bg-slate-800 border border-slate-700 text-cyan-300 px-1.5 py-0.5 rounded font-bold hover:bg-cyan-600/40 hover:text-white cursor-pointer transition-colors"
+            >
+              W A S D
+            </button>
             <span>Move Hero</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="bg-slate-800 border border-slate-700 text-amber-300 px-1.5 py-0.5 rounded font-bold">E</span>
+            <button
+              onClick={() => interactCurrentTile()}
+              title="Walk onto a glowing chest, then press E to open it"
+              className="bg-slate-800 border border-slate-700 text-amber-300 px-1.5 py-0.5 rounded font-bold hover:bg-amber-500/40 hover:text-white cursor-pointer transition-colors"
+            >
+              E
+            </button>
             <span>Interact / Loot</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="bg-slate-800 border border-slate-700 text-emerald-300 px-1.5 py-0.5 rounded font-bold">~</span>
+            <button
+              onClick={() => {
+                if (onToggleTerminalDrawer) {
+                  onToggleTerminalDrawer()
+                } else {
+                  setTerminalOpen(!terminalOpen)
+                }
+              }}
+              title="Toggle the Redis CLI terminal"
+              className="bg-slate-800 border border-slate-700 text-emerald-300 px-1.5 py-0.5 rounded font-bold hover:bg-emerald-500/40 hover:text-white cursor-pointer transition-colors"
+            >
+              ~
+            </button>
             <span>CLI Terminal</span>
           </div>
         </div>
+
+        {/* Offscreen quest markers pointing toward remaining objectives */}
+        {((enemies.some((e) => e.hp > 0)) || chests.some((c) => !c.looted)) && (
+          <div className="absolute inset-0 pointer-events-none z-10">
+            {chests
+              .filter((c) => !c.looted)
+              .map((c) => {
+                const t = getTileScreenPos(c.gx, c.gy, canvasRef.current)
+                const off = offscreenEdge(t, t.mapWidth, t.mapHeight)
+                if (!off) return null
+                return (
+                  <div
+                    key={c.id}
+                    className="absolute flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 border border-amber-400/50 text-amber-300 text-[9px] font-mono font-bold shadow-lg animate-pulse"
+                    style={{ left: off.x, top: off.y }}
+                  >
+                    <span className="text-[10px]">🔶</span> CHEST {off.dir}
+                  </div>
+                )
+              })}
+            {enemies
+              .filter((e) => e.hp > 0)
+              .map((e) => {
+                const t = getTileScreenPos(e.gx, e.gy, canvasRef.current)
+                const off = offscreenEdge(t, t.mapWidth, t.mapHeight)
+                if (!off) return null
+                return (
+                  <div
+                    key={e.id}
+                    className="absolute flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/15 border border-red-400/50 text-red-300 text-[9px] font-mono font-bold shadow-lg animate-pulse"
+                    style={{ left: off.x, top: off.y }}
+                  >
+                    <span className="text-[10px]">⚔️</span> {e.name.toUpperCase()} {off.dir}
+                  </div>
+                )
+              })}
+          </div>
+        )}
 
         {/* Battle / Interaction Banner */}
         {battleMessage && (

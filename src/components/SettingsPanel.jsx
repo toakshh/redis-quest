@@ -35,17 +35,17 @@ function SettingToggle({ label, description, enabled, onChange, icon }) {
 function SettingSelect({ label, description, value, options, onChange, icon }) {
   return (
     <div className="p-3 rounded bg-panel border border-edge">
-      <div className="flex items-center gap-3 mb-2">
-        <span className="text-xl">{icon}</span>
-        <div>
-          <div className="text-sm font-medium text-fg">{label}</div>
-          <div className="text-[10px] text-dim">{description}</div>
+      <div className="flex items-center gap-2.5 mb-2">
+        <span className="text-lg shrink-0">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-bold text-fg leading-tight">{label}</div>
+          {description && <div className="text-[10px] text-dim leading-tight">{description}</div>}
         </div>
       </div>
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full px-3 py-2 rounded bg-panel2 border border-edge text-fg text-sm focus:border-cyan focus:outline-none"
+        className="w-full px-2.5 py-1.5 rounded bg-panel2 border border-edge text-fg text-xs focus:border-cyan focus:outline-none truncate"
       >
         {options.map(opt => (
           <option key={opt.value} value={opt.value}>
@@ -70,12 +70,12 @@ function SettingButton({ label, description, onClick, icon, variant = 'secondary
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`flex items-center justify-center gap-2 w-full px-4 py-3 rounded border font-medium transition-colors ${variants[variant]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`flex items-center gap-2.5 w-full min-w-0 px-3 py-2.5 rounded border text-left font-medium transition-colors ${variants[variant]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
-      <span className="text-lg">{icon}</span>
-      <div className="text-left">
-        <div className="text-sm font-bold">{label}</div>
-        <div className="text-[10px] opacity-70">{description}</div>
+      <span className="text-base shrink-0">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-bold truncate leading-tight">{label}</div>
+        {description && <div className="text-[10px] opacity-70 truncate leading-tight">{description}</div>}
       </div>
     </button>
   )
@@ -86,61 +86,60 @@ function SaveSlotCard({ slot, onLoad, onSave, onDelete, onExport, onImport, curr
   const hasData = slot.exists
 
   return (
-    <div className={`relative panel border p-4 flex flex-col gap-3 ${isCurrent ? 'border-cyan/50 bg-cyan/5' : ''}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">{isCurrent ? '💾' : '💿'}</span>
-          <div>
-            <div className="font-bold text-fg">Slot {slot.id + 1}</div>
-            <div className="text-[10px] text-dim">
-              {hasData ? `Last saved: ${new Date(slot.timestamp).toLocaleString()}` : 'Empty'}
+    <div className={`relative panel border p-3 flex flex-col gap-2.5 min-w-0 ${isCurrent ? 'border-cyan/50 bg-cyan/5' : ''}`}>
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <span className="text-xl shrink-0">{isCurrent ? '💾' : '💿'}</span>
+          <div className="min-w-0 flex-1">
+            <div className="font-bold text-xs text-fg truncate">Slot {slot.id + 1}</div>
+            <div className="text-[10px] text-dim truncate">
+              {hasData ? `Saved: ${new Date(slot.timestamp).toLocaleDateString()} ${new Date(slot.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Empty'}
             </div>
           </div>
         </div>
         {isCurrent && (
-          <span className="px-2 py-0.5 rounded text-[9px] font-bold text-cyan bg-cyan/10 border border-cyan/30">
+          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold text-cyan bg-cyan/10 border border-cyan/30 shrink-0">
             ACTIVE
           </span>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-1.5">
         <SettingButton
           label={hasData ? 'Load Game' : 'Save Here'}
-          description={hasData ? 'Load this save slot' : 'Save current game to this slot'}
+          description={hasData ? 'Load save slot' : 'Save progress'}
           onClick={hasData ? () => onLoad(slot.id) : () => onSave(slot.id)}
           icon={hasData ? '📥' : '💾'}
           variant={hasData ? 'primary' : 'success'}
         />
         {hasData && (
-          <>
+          <div className="grid grid-cols-2 gap-1.5">
             <SettingButton
               label="Export"
-              description="Download save as JSON file"
+              description=""
               onClick={() => onExport(slot.id)}
               icon="📤"
               variant="secondary"
             />
             <SettingButton
               label="Delete"
-              description="Permanently delete this save"
+              description=""
               onClick={() => onDelete(slot.id)}
               icon="🗑️"
               variant="danger"
             />
-          </>
+          </div>
+        )}
+        {!hasData && (
+          <SettingButton
+            label="Import Save"
+            description="Load JSON"
+            onClick={() => onImport(slot.id)}
+            icon="📥"
+            variant="secondary"
+          />
         )}
       </div>
-
-      {!hasData && (
-        <SettingButton
-          label="Import Save"
-          description="Load save from JSON file"
-          onClick={() => onImport(slot.id)}
-          icon="📥"
-          variant="secondary"
-        />
-      )}
     </div>
   )
 }
@@ -304,6 +303,13 @@ export default function SettingsPanel({ className = '' }) {
               enabled={visualGuides}
               onChange={setVisualGuides}
               icon="👁️"
+            />
+            <SettingToggle
+              label="CLI Auto-Completion Hints"
+              description="Show beginner Redis command suggestions in the CLI terminal drawer"
+              enabled={visualGuides}
+              onChange={setVisualGuides}
+              icon="⌨️"
             />
             <SettingToggle
               label="Speedrun Timer"
