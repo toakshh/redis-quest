@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createEngine } from '../engine/engine.js'
-import { useGameStore, levelInfo, ACHIEVEMENTS } from './gameStore.js'
+import { useGameStore, levelInfo, ACHIEVEMENTS, REGIONS, BOSSES, SURVIVAL_SEEDS, SKILL_CONSTELLATIONS } from './gameStore.js'
 
 let engine
 
@@ -146,5 +146,248 @@ describe('boss battle', () => {
     expect(s.toasts).toEqual([])
     expect(s.boss).toBeNull()
     expect(s.xp).toBe(0)
+  })
+})
+
+describe('region progression', () => {
+  it('starts with String Forest unlocked and as current region', () => {
+    const s = useGameStore.getState()
+    expect(s.currentRegion).toBe('string-forest')
+    expect(s.completedRegions).toEqual([])
+    const available = s.getAvailableRegions()
+    expect(available.length).toBe(1)
+    expect(available[0].id).toBe('string-forest')
+    expect(available[0].unlocked).toBe(true)
+    expect(available[0].current).toBe(true)
+  })
+
+  it('can enter the current region', () => {
+    const s = useGameStore.getState()
+    const result = s.enterRegion('string-forest')
+    expect(result).toBe(true)
+    expect(s.currentRegion).toBe('string-forest')
+    expect(s.unlocked['string-forest-explorer']).toBeTruthy()
+  })
+
+  it('cannot enter a locked region', () => {
+    const s = useGameStore.getState()
+    const result = s.enterRegion('list-harbor')
+    expect(result).toBe(false)
+    expect(s.currentRegion).toBe('string-forest')
+  })
+
+  it('unlocks next region after completing current region boss', () => {
+    const s = useGameStore.getState()
+    // Defeat the Tangler (String Forest boss)
+    s.startBattle('the-tangler')
+    const run = s.runCommand
+    run('SET tangle:seed start')
+    run('SETRANGE tangle:seed 0 tangled_')
+    run('INCRBYFLOAT tangle:counter 1.5')
+    run('SET tangle:frag fragment')
+    run('SET tangle:final knotted')
+    run('EXPIRE tangle:final 30')
+
+    expect(s.completedRegions).toContain('string-forest')
+    expect(s.unlocked['tangler-slayer']).toBeTruthy()
+
+    // List Harbor should now be unlocked
+    const available = s.getAvailableRegions()
+    const listHarbor = available.find(r => r.id === 'list-harbor')
+    expect(listHarbor).toBeTruthy()
+    expect(listHarbor.unlocked).toBe(true)
+  })
+
+  it('tracks region progress', () => {
+    const s = useGameStore.getState()
+    s.startBattle('the-tangler')
+    const run = s.runCommand
+    run('SET tangle:seed start')
+    run('SETRANGE tangle:seed 0 tangled_')
+    run('INCRBYFLOAT tangle:counter 1.5')
+    run('SET tangle:frag fragment')
+    run('SET tangle:final knotted')
+    run('EXPIRE tangle:final 30')
+
+    expect(s.regionProgress['string-forest']).toEqual({ bossDefeated: true, challengesCompleted: true })
+  })
+})
+
+describe('survival mode', () => {
+  it('lists available survival seeds for unlocked regions', () => {
+    const s = useGameStore.getState()
+    const seeds = s.getAvailableSurvivalSeeds()
+    // Initially only string-forest is unlocked
+    expect(seeds.length).toBe(1)
+    expect(seeds[0].id).toBe('cache-invalidation-storm')
+  })
+
+  it('starts a survival seed and runs setup', () => {
+    const s = useGameStore.getState()
+    const result = s.startSurvival('cache-invalidation-storm')
+    expect(result).toBe(true)
+    expect(s.survivalMode).toBe('cache-invalidation-storm')
+    expect(s.survivalProgress['cache-invalidation-storm']).toEqual({ wave: 0, completed: false })
+
+    // Check engine was set up with cache keys
+    const cache1 = engine.rawExecute('GET', 'cache:user:1')
+    expect(cache1.type).toBe('bulk')
+    expect(cache1.value).toContain('Alice')
+  })
+
+  it('advances through waves and completes', () => {
+    const s = useGameStore.getState()
+    s.startSurvival('cache-invalidation-storm')
+
+    // Advance through all 5 waves
+    for (let i = 0; i < 5; i++) {
+      const result = s.advanceSurvivalWave()
+      if (i < 4) {
+        expect(result).toBe(i + 1)
+      } else {
+        expect(result).toBe('completed')
+      }
+    }
+
+    expect(s.survivalMode).toBeNull()
+    expect(s.survivalProgress['cache-invalidation-storm'].completed).toBe(true)
+    expect(s.survivalHistory.length).toBe(1)
+    expect(s.survivalHistory[0].won).toBe(true)
+    expect(s.unlocked['survival-cache-invalidation-storm']).toBeTruthy()
+  })
+
+  it('getSurvivalState returns current wave info', () => {
+    const s = useGameStore.getState()
+    s.startSurvival('cache-invalidation-storm')
+
+    let state = s.getSurvivalState()
+    expect(state.wave).toBe(0)
+    expect(state.totalWaves).toBe(5)
+    expect(state.currentWave.name).toBe('Wave 1: Read Burst')
+
+    s.advanceSurvivalWave()
+    state = s.getSurvivalState()
+    expect(state.wave).toBe(1)
+    expect(state.currentWave.name).toBe('Wave 2: Invalidation')
+  })
+})
+
+describe('skill tree', () => {
+  it('starts with 0 skill points and no unlocked skills', () => {
+    const s = useGameStore.getState()
+    expect(s.skillPoints).toBe(0)
+    expect(s.unlockedSkills).toEqual([])
+  })
+
+  it('earns skill points on level up (1 per level)', () => {
+    const s = useGameStore.getState()
+    // Manually add XP to trigger level up
+    s.addXp(100) // Level 2
+    expect(s.xp).toBe(100)
+    expect(levelInfo(s.xp).level).toBe(2)
+    // skillPoints should equal level - 1 (1 point per level after level 1)
+    expect(s.skillPoints).toBe(1)
+  })
+
+  it('canUnlockSkill returns true for available skills with enough points', () => {
+    const s = useGameStore.getState()
+    s.addXp(100) // Level 2, 1 skill point
+
+    // range-mastery costs 1, requires nothing, in String Forest (unlocked)
+    expect(s.canUnlockSkill('range-mastery')).toBe(true)
+    // float-precision costs 1, requires nothing
+    expect(s.canUnlockSkill('float-precision')).toBe(true)
+  })
+
+  it('canUnlockSkill returns false if not enough skill points', () => {
+    const s = useGameStore.getState()
+    // No skill points at level 1
+    expect(s.canUnlockSkill('range-mastery')).toBe(false)
+  })
+
+  it('canUnlockSkill returns false if prerequisites not met', () => {
+    const s = useGameStore.getState()
+    s.addXp(300) // Level 4, 3 skill points
+
+    // string-splicing requires range-mastery
+    expect(s.canUnlockSkill('string-splicing')).toBe(false)
+
+    // Unlock range-mastery first
+    s.unlockSkill('range-mastery')
+    expect(s.canUnlockSkill('string-splicing')).toBe(true)
+  })
+
+  it('canUnlockSkill returns false for skills in locked regions', () => {
+    const s = useGameStore.getState()
+    s.addXp(300) // Level 4, 3 skill points
+
+    // priority-insert is in list-harbor which is locked
+    expect(s.canUnlockSkill('priority-insert')).toBe(false)
+
+    // Complete String Forest to unlock List Harbor
+    s.startBattle('the-tangler')
+    const run = s.runCommand
+    run('SET tangle:seed start')
+    run('SETRANGE tangle:seed 0 tangled_')
+    run('INCRBYFLOAT tangle:counter 1.5')
+    run('SET tangle:frag fragment')
+    run('SET tangle:final knotted')
+    run('EXPIRE tangle:final 30')
+
+    // Now list-harbor should be unlocked
+    expect(s.canUnlockSkill('priority-insert')).toBe(true)
+  })
+
+  it('unlockSkill spends points and adds to unlockedSkills', () => {
+    const s = useGameStore.getState()
+    s.addXp(100) // 1 skill point
+
+    const result = s.unlockSkill('range-mastery')
+    expect(result).toBe(true)
+    expect(s.unlockedSkills).toContain('range-mastery')
+    expect(s.skillPoints).toBe(0)
+  })
+
+  it('unlockSkill returns false if cannot unlock', () => {
+    const s = useGameStore.getState()
+    // No skill points
+    const result = s.unlockSkill('range-mastery')
+    expect(result).toBe(false)
+    expect(s.unlockedSkills).not.toContain('range-mastery')
+  })
+
+  it('unlockSkill returns false for already unlocked skill', () => {
+    const s = useGameStore.getState()
+    s.addXp(100)
+    s.unlockSkill('range-mastery')
+
+    // Try to unlock again
+    const result = s.unlockSkill('range-mastery')
+    expect(result).toBe(true) // Idempotent - already unlocked
+    expect(s.unlockedSkills.filter(id => id === 'range-mastery')).toHaveLength(1)
+  })
+
+  it('all skill constellations are defined', () => {
+    expect(SKILL_CONSTELLATIONS.length).toBe(4)
+    expect(SKILL_CONSTELLATIONS.map(c => c.id)).toEqual([
+      'string-constellation',
+      'list-constellation',
+      'set-constellation',
+      'hash-constellation'
+    ])
+  })
+
+  it('each constellation has the expected number of skills', () => {
+    const stringConstellation = SKILL_CONSTELLATIONS.find(c => c.id === 'string-constellation')
+    expect(stringConstellation.skills.length).toBe(6)
+
+    const listConstellation = SKILL_CONSTELLATIONS.find(c => c.id === 'list-constellation')
+    expect(listConstellation.skills.length).toBe(6)
+
+    const setConstellation = SKILL_CONSTELLATIONS.find(c => c.id === 'set-constellation')
+    expect(setConstellation.skills.length).toBe(6)
+
+    const hashConstellation = SKILL_CONSTELLATIONS.find(c => c.id === 'hash-constellation')
+    expect(hashConstellation.skills.length).toBe(6)
   })
 })

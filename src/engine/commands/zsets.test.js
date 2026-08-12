@@ -81,10 +81,17 @@ describe('ZADD', () => {
   })
 
   it('preserves an existing TTL on element writes', () => {
+    const engine = new MockRedisEngine({ now: () => Date.now() })
     engine.rawExecute('ZADD', 'z', '1', 'a')
     engine.rawExecute('PEXPIRE', 'z', '5000')
-    engine.rawExecute('ZADD', 'z', '2', 'b')
-    expect(engine.rawExecute('PTTL', 'z')).toEqual(integer(5000))
+    // Use injectable clock to ensure TTL doesn't drift
+    let clock = Date.now()
+    const fixedEngine = new MockRedisEngine({ now: () => clock })
+    fixedEngine.rawExecute('ZADD', 'z', '1', 'a')
+    fixedEngine.rawExecute('PEXPIRE', 'z', '5000')
+    // Don't advance clock - TTL should be preserved without time passing
+    fixedEngine.rawExecute('ZADD', 'z', '2', 'b')
+    expect(fixedEngine.rawExecute('PTTL', 'z')).toEqual(integer(5000))
   })
 })
 

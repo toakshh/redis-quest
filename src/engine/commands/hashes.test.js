@@ -39,12 +39,16 @@ describe('HSET', () => {
   })
 
   it('preserves an existing TTL on element writes', () => {
+    // Use injectable clock to ensure TTL doesn't drift
+    let clock = Date.now()
+    const engine = new MockRedisEngine({ now: () => clock })
     engine.rawExecute('SET', 'h', 'x')
     engine.rawExecute('DEL', 'h')
     engine.rawExecute('HSET', 'h', 'a', '1')
-    engine.rawExecute('PEXPIRE', 'h', '60000')
+    engine.rawExecute('PEXPIRE', 'h', '5000')
+    // Don't advance clock - TTL should be preserved without time passing
     engine.rawExecute('HSET', 'h', 'b', '2')
-    expect(engine.rawExecute('PTTL', 'h').value).toBeGreaterThan(50000)
+    expect(engine.rawExecute('PTTL', 'h')).toEqual(integer(5000))
   })
 })
 

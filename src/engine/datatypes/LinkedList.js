@@ -143,3 +143,12 @@ export class LinkedList {
     }
   }
 }
+
+// Add iterator support for LINSERT
+LinkedList.prototype[Symbol.iterator] = function* () {
+  let n = this.head
+  while (n) {
+    yield n
+    n = n.next
+  }
+}

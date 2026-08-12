@@ -302,3 +302,72 @@ function randomIndex(engine, size) {
   if (size <= 1) return 0
   return engine.stats.totalCommands % size
 }
+
+export const SUNIONSTORE = cmd({
+  arity: -3,
+  syntax: 'SUNIONSTORE destination key [key ...]',
+  summary: 'Compute the union of all given sets and store the result in destination.',
+  group: 'sets',
+  examples: ['SUNIONSTORE dest a b c'],
+})((engine, args) => storeSetOp(engine, args, 'UNION'))
+
+export const SINTERSTORE = cmd({
+  arity: -3,
+  syntax: 'SINTERSTORE destination key [key ...]',
+  summary: 'Compute the intersection of all given sets and store the result in destination.',
+  group: 'sets',
+  examples: ['SINTERSTORE dest a b c'],
+})((engine, args) => storeSetOp(engine, args, 'INTER'))
+
+export const SDIFFSTORE = cmd({
+  arity: -3,
+  syntax: 'SDIFFSTORE destination key [key ...]',
+  summary: 'Compute the difference of the given sets and store the result in destination.',
+  group: 'sets',
+  examples: ['SDIFFSTORE dest a b c'],
+})((engine, args) => storeSetOp(engine, args, 'DIFF'))
+
+function storeSetOp(engine, args, op) {
+  const destination = args[1]
+  const keys = args.slice(2)
+  const { sets, wrongType: wt } = collectSets(engine, keys)
+  if (wt) return wrongType()
+
+  let resSet = new Set()
+
+  if (op === 'UNION') {
+    for (const set of sets) {
+      if (set) for (const member of set) resSet.add(member)
+    }
+  } else if (op === 'INTER') {
+    if (sets.length > 0 && sets[0] !== null) {
+      for (const member of sets[0]) {
+        if (sets.slice(1).every((s) => s !== null && s.has(member))) {
+          resSet.add(member)
+        }
+      }
+    }
+  } else if (op === 'DIFF') {
+    if (sets.length > 0 && sets[0] !== null) {
+      for (const member of sets[0]) {
+        if (!sets.slice(1).some((s) => s !== null && s.has(member))) {
+          resSet.add(member)
+        }
+      }
+    }
+  }
+
+  if (resSet.size === 0) {
+    engine._delete(destination)
+    engine.emit('change')
+    return integerReply(0)
+  }
+
+  const { entry, wrongType: dstWt } = engine._entryForWrite(destination, 'set')
+  if (dstWt) return wrongType()
+  entry.value = resSet
+  engine._clearTtl(entry)
+  engine._bump(destination, entry)
+  engine.emit('change')
+  return integerReply(resSet.size)
+}
