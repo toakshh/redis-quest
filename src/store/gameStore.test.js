@@ -162,8 +162,8 @@ describe('region progression', () => {
   })
 
   it('can enter the current region', () => {
+    const result = useGameStore.getState().enterRegion('string-forest')
     const s = useGameStore.getState()
-    const result = s.enterRegion('string-forest')
     expect(result).toBe(true)
     expect(s.currentRegion).toBe('string-forest')
     expect(s.unlocked['string-forest-explorer']).toBeTruthy()
@@ -177,10 +177,9 @@ describe('region progression', () => {
   })
 
   it('unlocks next region after completing current region boss', () => {
-    const s = useGameStore.getState()
     // Defeat the Tangler (String Forest boss)
-    s.startBattle('the-tangler')
-    const run = s.runCommand
+    useGameStore.getState().startBattle('the-tangler')
+    const run = useGameStore.getState().runCommand
     run('SET tangle:seed start')
     run('SETRANGE tangle:seed 0 tangled_')
     run('INCRBYFLOAT tangle:counter 1.5')
@@ -188,6 +187,7 @@ describe('region progression', () => {
     run('SET tangle:final knotted')
     run('EXPIRE tangle:final 30')
 
+    const s = useGameStore.getState()
     expect(s.completedRegions).toContain('string-forest')
     expect(s.unlocked['tangler-slayer']).toBeTruthy()
 
@@ -199,9 +199,8 @@ describe('region progression', () => {
   })
 
   it('tracks region progress', () => {
-    const s = useGameStore.getState()
-    s.startBattle('the-tangler')
-    const run = s.runCommand
+    useGameStore.getState().startBattle('the-tangler')
+    const run = useGameStore.getState().runCommand
     run('SET tangle:seed start')
     run('SETRANGE tangle:seed 0 tangled_')
     run('INCRBYFLOAT tangle:counter 1.5')
@@ -209,6 +208,7 @@ describe('region progression', () => {
     run('SET tangle:final knotted')
     run('EXPIRE tangle:final 30')
 
+    const s = useGameStore.getState()
     expect(s.regionProgress['string-forest']).toEqual({ bossDefeated: true, challengesCompleted: true })
   })
 })
@@ -223,8 +223,8 @@ describe('survival mode', () => {
   })
 
   it('starts a survival seed and runs setup', () => {
+    const result = useGameStore.getState().startSurvival('cache-invalidation-storm')
     const s = useGameStore.getState()
-    const result = s.startSurvival('cache-invalidation-storm')
     expect(result).toBe(true)
     expect(s.survivalMode).toBe('cache-invalidation-storm')
     expect(s.survivalProgress['cache-invalidation-storm']).toEqual({ wave: 0, completed: false })
@@ -236,12 +236,11 @@ describe('survival mode', () => {
   })
 
   it('advances through waves and completes', () => {
-    const s = useGameStore.getState()
-    s.startSurvival('cache-invalidation-storm')
+    useGameStore.getState().startSurvival('cache-invalidation-storm')
 
     // Advance through all 5 waves
     for (let i = 0; i < 5; i++) {
-      const result = s.advanceSurvivalWave()
+      const result = useGameStore.getState().advanceSurvivalWave()
       if (i < 4) {
         expect(result).toBe(i + 1)
       } else {
@@ -249,6 +248,7 @@ describe('survival mode', () => {
       }
     }
 
+    const s = useGameStore.getState()
     expect(s.survivalMode).toBeNull()
     expect(s.survivalProgress['cache-invalidation-storm'].completed).toBe(true)
     expect(s.survivalHistory.length).toBe(1)
@@ -280,9 +280,9 @@ describe('skill tree', () => {
   })
 
   it('earns skill points on level up (1 per level)', () => {
-    const s = useGameStore.getState()
     // Manually add XP to trigger level up
-    s.addXp(100) // Level 2
+    useGameStore.getState().addXp(100) // Level 2
+    const s = useGameStore.getState()
     expect(s.xp).toBe(100)
     expect(levelInfo(s.xp).level).toBe(2)
     // skillPoints should equal level - 1 (1 point per level after level 1)
@@ -318,15 +318,14 @@ describe('skill tree', () => {
   })
 
   it('canUnlockSkill returns false for skills in locked regions', () => {
-    const s = useGameStore.getState()
-    s.addXp(300) // Level 4, 3 skill points
+    useGameStore.getState().addXp(300) // Level 4, 3 skill points
 
     // priority-insert is in list-harbor which is locked
-    expect(s.canUnlockSkill('priority-insert')).toBe(false)
+    expect(useGameStore.getState().canUnlockSkill('priority-insert')).toBe(false)
 
     // Complete String Forest to unlock List Harbor
-    s.startBattle('the-tangler')
-    const run = s.runCommand
+    useGameStore.getState().startBattle('the-tangler')
+    const run = useGameStore.getState().runCommand
     run('SET tangle:seed start')
     run('SETRANGE tangle:seed 0 tangled_')
     run('INCRBYFLOAT tangle:counter 1.5')
@@ -335,14 +334,14 @@ describe('skill tree', () => {
     run('EXPIRE tangle:final 30')
 
     // Now list-harbor should be unlocked
-    expect(s.canUnlockSkill('priority-insert')).toBe(true)
+    expect(useGameStore.getState().canUnlockSkill('priority-insert')).toBe(true)
   })
 
   it('unlockSkill spends points and adds to unlockedSkills', () => {
-    const s = useGameStore.getState()
-    s.addXp(100) // 1 skill point
+    useGameStore.getState().addXp(100) // 1 skill point
 
-    const result = s.unlockSkill('range-mastery')
+    const result = useGameStore.getState().unlockSkill('range-mastery')
+    const s = useGameStore.getState()
     expect(result).toBe(true)
     expect(s.unlockedSkills).toContain('range-mastery')
     expect(s.skillPoints).toBe(0)
@@ -357,12 +356,12 @@ describe('skill tree', () => {
   })
 
   it('unlockSkill returns false for already unlocked skill', () => {
-    const s = useGameStore.getState()
-    s.addXp(100)
-    s.unlockSkill('range-mastery')
+    useGameStore.getState().addXp(100)
+    useGameStore.getState().unlockSkill('range-mastery')
 
     // Try to unlock again
-    const result = s.unlockSkill('range-mastery')
+    const result = useGameStore.getState().unlockSkill('range-mastery')
+    const s = useGameStore.getState()
     expect(result).toBe(true) // Idempotent - already unlocked
     expect(s.unlockedSkills.filter(id => id === 'range-mastery')).toHaveLength(1)
   })

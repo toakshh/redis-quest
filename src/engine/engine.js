@@ -291,8 +291,6 @@ export class MockRedisEngine {
     }
     this.commandHistory.push(entry)
     if (this.commandHistory.length > HISTORY_LIMIT) this.commandHistory.shift()
-    // Emit a structured command event so the bridge/game can react.
-    this.emit('command', entry)
   }
 
   // Silent execution: performs the command but does NOT broadcast the
@@ -358,11 +356,9 @@ export class MockRedisEngine {
     }
     if (reply && reply.type === 'error') this.stats.totalErrors++
 
-    // Broadcast every executed command so the game world, boss and companion
-    // can translate it into observable effects. Queued MULTI commands never
-    // reach here (they return QUEUED above). `args` mirrors what the handler
-    // received: [0] is the canonical command name.
-    this.emit('command', { name: canon, args: tokens, reply })
+    if (!this._silent) {
+      this.emit('command', { name: canon, args: tokens, reply })
+    }
 
     return reply
   }

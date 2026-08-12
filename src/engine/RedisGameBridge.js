@@ -163,17 +163,24 @@ export class RedisGameBridge {
   }
 
   _onCommand(ev) {
+    const commandName = ev.command || ev.name
+    const rawArgs = ev.args || []
+    const positionalArgs =
+      rawArgs.length > 0 && String(rawArgs[0]).toUpperCase() === commandName
+        ? rawArgs.slice(1)
+        : rawArgs
+
     // 1. Every executed line becomes a RedisCommandExecuted event.
     this._emit({
       type: EVENT_TYPES.REDIS_COMMAND_EXECUTED,
       source: 'engine',
       payload: {
         seq: ev.seq,
-        command: ev.command,
-        args: ev.args,
-        raw: ev.raw,
+        command: commandName,
+        args: positionalArgs,
+        raw: ev.raw || [commandName, ...positionalArgs].join(' '),
         reply: ev.reply,
-        timestamp: ev.timestamp,
+        timestamp: ev.timestamp || Date.now(),
       },
     })
 
@@ -191,8 +198,8 @@ export class RedisGameBridge {
         source: 'bridge',
         payload: {
           effect: EFFECT_KINDS.ERROR_RIPPLE,
-          command: ev.command,
-          args: ev.args,
+          command: commandName,
+          args: positionalArgs,
           error: reply.value,
         },
       })
@@ -200,16 +207,16 @@ export class RedisGameBridge {
     }
 
     // 3. Pick and emit a visual effect for the command.
-    const effect = this._effectFor(ev.command, ev.args, reply)
+    const effect = this._effectFor(commandName, positionalArgs, reply)
     if (effect) {
-      for (const key of commandKeys(ev.command, ev.args)) {
+      for (const key of commandKeys(commandName, positionalArgs)) {
         this._emit({
           type: EVENT_TYPES.VISUAL_EFFECT_REQUESTED,
           source: 'bridge',
           payload: {
             effect,
-            command: ev.command,
-            args: ev.args,
+            command: commandName,
+            args: positionalArgs,
             key,
           },
         })
@@ -217,7 +224,9 @@ export class RedisGameBridge {
     }
 
     // 4. Diff the store against the previous snapshot.
-    this._emitStateChanges()
+    if (!this.engine.multiExecuting) {
+      this._emitStateChanges()
+    }
   }
 
   _onExpired(ev) {

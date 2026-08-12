@@ -69,7 +69,6 @@ export class EventBus {
     if (typeof event === 'string') {
       const set = this._simpleHandlers.get(event)
       if (set) for (const fn of set) fn(payload)
-      for (const fn of this._wildcards) fn(event, payload)
 
       event = { type: event, payload: payload || {} }
     }
@@ -85,6 +84,8 @@ export class EventBus {
     }
     this._log.push(normalized)
     if (this._log.length > this._logSize) this._log.shift()
+
+    for (const fn of this._wildcards) fn(normalized)
 
     for (const entry of [...this._handlers]) {
       if (!entry.regex.test(normalized.type)) continue

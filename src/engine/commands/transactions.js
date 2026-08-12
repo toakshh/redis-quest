@@ -60,8 +60,13 @@ export const EXEC = cmd({
   engine.watchedKeys.clear()
 
   engine.stats.multiBatches++
+  engine.multiExecuting = true
   const replies = []
-  for (const tokens of queue) replies.push(engine._executeTokens(tokens))
+  try {
+    for (const tokens of queue) replies.push(engine._executeTokens(tokens))
+  } finally {
+    engine.multiExecuting = false
+  }
   return arrayReply(replies)
 })
 

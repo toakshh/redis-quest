@@ -10,6 +10,7 @@
 
 import { create } from 'zustand'
 import { ACHIEVEMENTS as NEW_ACHIEVEMENTS, RARITY_COLORS, RARITY_LABELS, CATEGORY_LABELS, CATEGORY_ICONS } from '../data/achievements.js'
+import { xpForCommand } from '../systems/XPSystem.js'
 
 export { RARITY_COLORS, RARITY_LABELS, CATEGORY_LABELS, CATEGORY_ICONS }
 
@@ -136,7 +137,7 @@ export const BOSSES = [
         check: (engine, entry) => entry && entry.type === 'string' && entry.value === 'start',
       },
       {
-        key: 'tangle:prefix',
+        key: 'tangle:seed',
         task: 'Prepend using GETRANGE/SETRANGE: overwrite `tangle:seed` to have prefix `tangled_`.',
         hint: 'SETRANGE tangle:seed 0 tangled_',
         damage: 20,
@@ -719,8 +720,8 @@ export const useGameStore = create((set, get) => {
     set((s) => ({
       unlocked: { ...s.unlocked, [id]: Date.now() },
       toasts: [...s.toasts, { ...def, unlockedAt: Date.now() }],
-      xp: s.xp + def.xp,
     }))
+    get().addXp(def.xp)
   }
 
   function syncStats() {
@@ -744,7 +745,6 @@ export const useGameStore = create((set, get) => {
     const challengeIndex = info.challenge ? boss.challengeIndex + 1 : boss.challengeIndex
     const defeated = nextHealth <= 0 || challengeIndex >= boss.challenges.length
     set((s) => ({
-      xp: s.xp + xpGain,
       boss: {
         ...boss,
         health: nextHealth,
@@ -765,6 +765,7 @@ export const useGameStore = create((set, get) => {
         ? [...s.bossHistory, { id: boss.id, name: boss.name, won: true, at: Date.now(), xp: xpGain }]
         : s.bossHistory,
     }))
+    get().addXp(xpGain)
     if (defeated) {
       unlock('boss-defeated')
       // Region-specific boss achievements
@@ -828,6 +829,28 @@ export const useGameStore = create((set, get) => {
     syncStats()
     checkAchievements()
     checkBoss(reply)
+
+    if (reply && reply.type !== 'error') {
+      const engine = get().engine
+      if (engine && engine.commandHistory.length > 0) {
+        const lastCmd = engine.commandHistory[engine.commandHistory.length - 1]
+        const name = lastCmd ? lastCmd.command : ''
+        if (name) {
+          const isFirstUse = engine.stats.commandsByType[name] === 1
+          const xpAwarded = xpForCommand({
+            name,
+            reply,
+            isFirstUse,
+            comboCount: 0,
+            wasEfficient: false,
+            mode: 'beginner',
+          })
+          if (xpAwarded > 0) {
+            get().addXp(xpAwarded)
+          }
+        }
+      }
+    }
   }
 
   // Region progression helpers
