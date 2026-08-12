@@ -12,6 +12,7 @@ import CosmeticLocker from './components/CosmeticLocker.jsx'
 import SettingsPanel from './components/SettingsPanel.jsx'
 import RexPanel from './components/RexPanel.jsx'
 import JuiceOverlay from './components/JuiceOverlay.jsx'
+import GameCanvas from './components/GameCanvas.jsx'
 
 // One shared engine for the whole app: the terminal executes through it, the
 // store inspects it for challenge/achievement validation, and the header +
@@ -20,6 +21,7 @@ const engine = createEngine()
 
 const SIDE_TABS = [
   { id: 'memory', label: 'MEM', hint: 'inspector' },
+  { id: 'world', label: 'WORLD', hint: '2D Map' },
   { id: 'boss', label: 'BOSS', hint: 'battle' },
   { id: 'awards', label: 'AWARDS', hint: 'achievements' },
   { id: 'skills', label: 'SKILLS', hint: 'tree' },
@@ -81,12 +83,18 @@ export default function App() {
           </nav>
 
           <div className="min-h-0 flex-1">
-            {tab === 'memory' && <MemoryInspector engine={engine} className="h-full border-x-0" />}
-            {tab === 'boss' && <BossBattle className="h-full" />}
-            {tab === 'awards' && <AchievementGallery className="h-full" />}
-            {tab === 'skills' && <SkillTreePanel className="h-full" />}
-            {tab === 'cosmetics' && <CosmeticLocker className="h-full" />}
-            {tab === 'settings' && <SettingsPanel className="h-full" />}
+            {tab === 'world' ? (
+              <GameCanvas engine={engine} />
+            ) : (
+                <div className="flex h-full flex-col">
+                    {tab === 'memory' && <MemoryInspector engine={engine} className="flex-1 border-x-0" />}
+                    {tab === 'boss' && <BossBattle className="flex-1" />}
+                    {tab === 'awards' && <AchievementGallery className="flex-1" />}
+                    {tab === 'skills' && <SkillTreePanel className="flex-1" />}
+                    {tab === 'cosmetics' && <CosmeticLocker className="flex-1" />}
+                    {tab === 'settings' && <SettingsPanel className="flex-1" />}
+                </div>
+            )}
           </div>
         </aside>
 
