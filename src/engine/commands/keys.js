@@ -209,7 +209,7 @@ export const RANDOMKEY = cmd({
     if (engine._get(key) !== null) keys.push(key)
   }
   if (keys.length === 0) return nilReply()
-  return bulkReply(keys[Math.floor(Math.random() * keys.length)])
+  return bulkReply(keys[Math.floor(engine.random() * keys.length)])
 })
 
 export const DBSIZE = cmd({

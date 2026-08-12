@@ -2,6 +2,10 @@ import { splitArgs } from './parser.js'
 import { registry } from './registry.js'
 import { unknownCommand, errorReply, simpleReply, wrongArity } from './reply.js'
 import { totalMemoryBytes, MEMORY_CONSTANTS } from './datatypes/memory.js'
+import { createRng } from './rng.js'
+
+// How many executed commands we keep for time-travel debugging.
+export const HISTORY_LIMIT = 500
 
 // A tiny emitter so the app (terminal, inspector, mission engine) can react
 // to engine mutations without coupling.
@@ -27,13 +31,24 @@ const DB_COUNT = 16
 const SWEEP_INTERVAL_MS = 1000
 
 export class MockRedisEngine {
-  constructor({ memoryLimit = MEMORY_CONSTANTS.DEFAULT_MEMORY_LIMIT, now = null } = {}) {
+  constructor({
+    memoryLimit = MEMORY_CONSTANTS.DEFAULT_MEMORY_LIMIT,
+    now = null,
+    seed = null,
+  } = {}) {
     this.databases = new Map()
     for (let i = 0; i < DB_COUNT; i++) this.databases.set(i, new Map())
     this.activeDb = 0
     this.memoryLimit = memoryLimit
     this._now = now // injectable clock for tests (null = real Date.now)
+    this._rng = createRng(seed) // injectable deterministic PRNG (seed = fixed)
     this.emitter = new Emitter()
+
+    // Command history for time-travel debugging / replay. Every executed (or
+    // MULTI-queued) command is recorded with its reply, so a session can be
+    // replayed against a fresh engine and compared.
+    this.commandHistory = []
+    this.commandSeq = 0
 
     this.stats = {
       totalCommands: 0,
@@ -71,6 +86,13 @@ export class MockRedisEngine {
     return this._now !== null ? this._now() : Date.now()
   }
 
+  // Deterministic randomness: uses the seeded PRNG when a seed was provided,
+  // otherwise Math.random. Commands that need "random" (RANDOMKEY) go through
+  // this so replaying the same seed reproduces the same reply.
+  random() {
+    return this._rng()
+  }
+
   // ---- store access ----------------------------------------------------
 
   get store() {
@@ -85,7 +107,7 @@ export class MockRedisEngine {
       this.store.delete(key)
       this.stats.keysExpired++
       this._cache.dirty = true
-      this.emit('expired', key)
+      this.emit('expired', { keys: [key] })
       this.emit('change')
       return null
     }
@@ -141,17 +163,17 @@ export class MockRedisEngine {
   // Remove all expired keys now. Called on a timer and lazily.
   _sweepExpired() {
     const now = this.now()
-    let removed = 0
+    const removedKeys = []
     for (const [key, entry] of this.store) {
       if (entry.expiresAt !== null && entry.expiresAt <= now) {
         this.store.delete(key)
-        removed++
+        removedKeys.push(key)
       }
     }
-    if (removed > 0) {
-      this.stats.keysExpired += removed
+    if (removedKeys.length > 0) {
+      this.stats.keysExpired += removedKeys.length
       this._cache.dirty = true
-      this.emit('expired')
+      this.emit('expired', { keys: removedKeys })
       this.emit('change')
     }
     this._lastSweep = now
@@ -235,17 +257,40 @@ export class MockRedisEngine {
     if (!ok) {
       this.stats.totalErrors++
       this.emit('error')
-      return errorReply(error)
+      const reply = errorReply(error)
+      this._recordHistory(line, [], reply)
+      return reply
     }
     if (tokens.length === 0) {
       return simpleReply('') // empty line -> nothing (redis-cli prints nothing)
     }
-    return this._executeTokens(tokens)
+    const reply = this._executeTokens(tokens)
+    this._recordHistory(line, tokens, reply)
+    return reply
   }
 
   // Programmatic execution for mission validators / tests / boss waves.
   rawExecute(command, ...args) {
-    return this._executeTokens([command, ...args])
+    const tokens = [command, ...args]
+    const reply = this._executeTokens(tokens)
+    this._recordHistory(tokens.join(' '), tokens, reply)
+    return reply
+  }
+
+  // Record a command in the history ring buffer for time-travel / replay.
+  _recordHistory(raw, tokens, reply) {
+    const entry = {
+      seq: this.commandSeq++,
+      raw,
+      command: tokens.length > 0 ? String(tokens[0]).toUpperCase() : '',
+      args: tokens.slice(1).map(String),
+      reply,
+      timestamp: this.now(),
+    }
+    this.commandHistory.push(entry)
+    if (this.commandHistory.length > HISTORY_LIMIT) this.commandHistory.shift()
+    // Emit a structured command event so the bridge/game can react.
+    this.emit('command', entry)
   }
 
   _executeTokens(tokens) {
