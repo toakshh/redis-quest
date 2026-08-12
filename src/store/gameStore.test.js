@@ -97,6 +97,43 @@ describe('boss battle', () => {
     expect(boss.health).toBe(100)
   })
 
+  it('triggers boss immunity feedback and strategy overlay when standard attack fails', () => {
+    useGameStore.getState().startBattle('neon-serpent')
+    const run = useGameStore.getState().runCommand
+    // Execute an ineffective command for challenge 0
+    run('GET wrong:key')
+    const { boss } = useGameStore.getState()
+    expect(boss.lastResult.ok).toBe(false)
+    expect(boss.lastResult.message).toContain('Immune to GET!')
+    expect(boss.immunityShield).toBeDefined()
+    expect(boss.immunityShield.active).toBe(true)
+    expect(boss.immunityShield.command).toBe('GET')
+    expect(boss.immunityShield.bossName).toBe('NEON SERPENT')
+    expect(boss.immunityShield.whyFailed).toBeTruthy()
+    expect(boss.immunityShield.requiredConcept).toBe('String Storage (SET)')
+  })
+
+  it('dismisses boss immunity overlay via dismissBossImmunity', () => {
+    useGameStore.getState().startBattle('neon-serpent')
+    useGameStore.getState().runCommand('GET wrong:key')
+    expect(useGameStore.getState().boss.immunityShield?.active).toBe(true)
+    useGameStore.getState().dismissBossImmunity()
+    expect(useGameStore.getState().boss.immunityShield).toBeNull()
+  })
+
+  it('clears immunity overlay automatically when correct command breaches the shield', () => {
+    useGameStore.getState().startBattle('neon-serpent')
+    useGameStore.getState().runCommand('GET wrong:key')
+    expect(useGameStore.getState().boss.immunityShield?.active).toBe(true)
+
+    // Correct strategy command
+    useGameStore.getState().runCommand('SET quest:start begun')
+    const { boss } = useGameStore.getState()
+    expect(boss.immunityShield).toBeNull()
+    expect(boss.lastResult.ok).toBe(true)
+    expect(boss.health).toBe(82)
+  })
+
   it('dismantles the serpent by solving every objective', () => {
     useGameStore.getState().startBattle()
     const run = useGameStore.getState().runCommand

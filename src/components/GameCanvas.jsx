@@ -53,7 +53,19 @@ export const REGION_MAPS = {
       { id: 'mv_c3', gx: 8, gy: 12, gem: 'DEL', key: 'quest:temp', value: 'secret', looted: false },
     ],
     enemies: [
-      { id: 'mv_e1', name: 'Memory Goblin', gx: 10, gy: 8, hp: 30, maxHp: 30, shieldKey: 'goblin:shield', spell: 'SET goblin:shield 100', counterGem: 'DEL' },
+      {
+        id: 'mv_e1',
+        name: 'Memory Goblin',
+        gx: 10,
+        gy: 8,
+        hp: 30,
+        maxHp: 30,
+        shieldKey: 'goblin:shield',
+        spell: 'SET goblin:shield 100',
+        counterGem: 'DEL',
+        failureReason: 'Standard SET/GET spells bounce off the Goblin\'s corrupted memory shield.',
+        requiredConcept: 'Key Deletion (DEL) is required to purge the corrupted shield key.',
+      },
     ],
   },
   'key-value-kingdom': {
@@ -71,7 +83,19 @@ export const REGION_MAPS = {
       { id: 'kv_c3', gx: 12, gy: 18, gem: 'HDEL', key: 'user:100', value: 'name', looted: false },
     ],
     enemies: [
-      { id: 'kv_e1', name: 'Entropy Spectre', gx: 14, gy: 14, hp: 50, maxHp: 50, shieldKey: 'spectre:barrier', spell: 'HSET spectre:barrier armor 50', counterGem: 'HDEL' },
+      {
+        id: 'kv_e1',
+        name: 'Entropy Spectre',
+        gx: 14,
+        gy: 14,
+        hp: 50,
+        maxHp: 50,
+        shieldKey: 'spectre:barrier',
+        spell: 'HSET spectre:barrier armor 50',
+        counterGem: 'HDEL',
+        failureReason: 'Simple string commands cannot affect field-value hash structures.',
+        requiredConcept: 'Hash Field Removal (HDEL) is needed to strip fields from the Spectre\'s barrier.',
+      },
     ],
   },
   'pubsub-city': {
@@ -88,7 +112,19 @@ export const REGION_MAPS = {
       { id: 'ps_c2', gx: 16, gy: 16, gem: 'SUBSCRIBE', key: 'news:channel', value: '', looted: false },
     ],
     enemies: [
-      { id: 'ps_e1', name: 'Noise Jammer', gx: 12, gy: 12, hp: 40, maxHp: 40, shieldKey: 'jammer:signal', spell: 'PUBLISH jammer:signal noise', counterGem: 'PUBLISH' },
+      {
+        id: 'ps_e1',
+        name: 'Noise Jammer',
+        gx: 12,
+        gy: 12,
+        hp: 40,
+        maxHp: 40,
+        shieldKey: 'jammer:signal',
+        spell: 'PUBLISH jammer:signal noise',
+        counterGem: 'PUBLISH',
+        failureReason: 'Normal data writes cannot penetrate the Jammer\'s broadcast frequency.',
+        requiredConcept: 'Pub/Sub Channel Broadcast (PUBLISH) to disrupt the signal.',
+      },
     ],
   },
   'data-structure-dungeons': {
@@ -106,8 +142,32 @@ export const REGION_MAPS = {
       { id: 'ds_c3', gx: 10, gy: 20, gem: 'ZADD', key: 'arena:scores', value: '100 Hero', looted: false },
     ],
     enemies: [
-      { id: 'ds_e1', name: 'Queue Overlord', gx: 15, gy: 15, hp: 70, maxHp: 70, shieldKey: 'overlord:queue', spell: 'LPUSH overlord:queue spike', counterGem: 'RPOP' },
-      { id: 'ds_e2', name: 'Time Bomb', gx: 8, gy: 14, hp: 20, maxHp: 20, shieldKey: 'bomb:timer', spell: 'EXPIRE bomb:timer 5', counterGem: 'DEL' },
+      {
+        id: 'ds_e1',
+        name: 'Queue Overlord',
+        gx: 15,
+        gy: 15,
+        hp: 70,
+        maxHp: 70,
+        shieldKey: 'overlord:queue',
+        spell: 'LPUSH overlord:queue spike',
+        counterGem: 'RPOP',
+        failureReason: 'The Overlord\'s shield is backed by a list queue that repels direct hits.',
+        requiredConcept: 'Queue Consumption (RPOP or LPOP) to drain the queue shield.',
+      },
+      {
+        id: 'ds_e2',
+        name: 'Time Bomb',
+        gx: 8,
+        gy: 14,
+        hp: 20,
+        maxHp: 20,
+        shieldKey: 'bomb:timer',
+        spell: 'EXPIRE bomb:timer 5',
+        counterGem: 'DEL',
+        failureReason: 'The Time Bomb countdown cannot be stopped by normal inspection.',
+        requiredConcept: 'Key Deletion (DEL) or TTL Override (EXPIRE) to defuse the bomb.',
+      },
     ],
   },
   'cluster-galaxy': {
@@ -124,7 +184,19 @@ export const REGION_MAPS = {
       { id: 'cg_c2', gx: 22, gy: 22, gem: 'DEL', key: 'node:bad', value: '', looted: false },
     ],
     enemies: [
-      { id: 'cg_e1', name: 'Partition Anomaly', gx: 18, gy: 12, hp: 100, maxHp: 100, shieldKey: 'anomaly:core', spell: 'SET anomaly:core locked', counterGem: 'DEL' },
+      {
+        id: 'cg_e1',
+        name: 'Partition Anomaly',
+        gx: 18,
+        gy: 12,
+        hp: 100,
+        maxHp: 100,
+        shieldKey: 'anomaly:core',
+        spell: 'SET anomaly:core locked',
+        counterGem: 'DEL',
+        failureReason: 'The Anomaly\'s slot hash isolates standard key operations.',
+        requiredConcept: 'Key Purge (DEL) or Cluster Rebalancing to resolve the partition.',
+      },
     ],
   },
 }
@@ -146,6 +218,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const [battleMessage, setBattleMessage] = useState('')
   const [showVictory, setShowVictory] = useState(false)
   const [openedChestGem, setOpenedChestGem] = useState(null)
+  const [enemyImmunityOverlay, setEnemyImmunityOverlay] = useState(null)
 
   // Camera instance ref
   const cameraRef = useRef(new Camera({ viewportWidth: 1200, viewportHeight: 700, smoothFactor: 0.15 }))
@@ -158,6 +231,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     const map = REGION_MAPS[regionId] || REGION_MAPS['memory-village']
     setChests(map.chests)
     setEnemies(map.enemies)
+    setEnemyImmunityOverlay(null)
     playerRef.current = { gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' }
     setPlayerGridPos({ gx: 2, gy: 2 })
     const initialIso = gridToIso(2, 2)
@@ -260,6 +334,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         const newHp = Math.max(0, activeEnemy.hp - damage)
         activeEnemy.hp = newHp
         setEnemies([...enemies])
+        setEnemyImmunityOverlay(null)
 
         if (engine && activeEnemy.shieldKey) {
           engine.execute(`DEL ${activeEnemy.shieldKey}`)
@@ -272,7 +347,15 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
           setBattleMessage(`⚡ Cast ${gem}! Hit ${activeEnemy.name} for ${damage} dmg! (${newHp}/${activeEnemy.maxHp} HP)`)
         }
       } else {
-        setBattleMessage(`⚠️ Cast ${gem}, but ${activeEnemy.name} shielded! Use ${activeEnemy.counterGem}!`)
+        setBattleMessage(`Immune to ${gem}! The boss's data structure requires a specific command type!`)
+        setEnemyImmunityOverlay({
+          active: true,
+          command: gem,
+          enemyName: activeEnemy.name,
+          whyFailed: activeEnemy.failureReason || `Standard ${gem} spells bounce off ${activeEnemy.name}'s data structure shield.`,
+          requiredConcept: activeEnemy.requiredConcept || `Specialized command required: ${activeEnemy.counterGem}`,
+          hint: `${activeEnemy.counterGem} ${activeEnemy.shieldKey || ''}`,
+        })
       }
     } else {
       setBattleMessage(`Cast ${gem} gem into the air! (No enemies in range)`)
@@ -319,7 +402,31 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       const verb = parts[0].toUpperCase()
       const arg1 = parts[1]
 
-      if (verb === 'DEL') {
+      const p = playerRef.current
+      const activeEnemy = enemies.find((e) => e.hp > 0 && Math.abs(e.gx - p.gx) <= 4 && Math.abs(e.gy - p.gy) <= 4)
+
+      if (activeEnemy) {
+        if (verb === activeEnemy.counterGem || verb === 'DEL') {
+          enemies.forEach((en) => {
+            if ((en.shieldKey === arg1 || en.id === activeEnemy.id) && en.hp > 0) {
+              en.hp = Math.max(0, en.hp - 35)
+              setBattleMessage(`⚡ Terminal ${verb} breached ${en.name}'s shield!`)
+            }
+          })
+          setEnemies([...enemies])
+          setEnemyImmunityOverlay(null)
+        } else {
+          setBattleMessage(`Immune to ${verb}! The boss's data structure requires a specific command type!`)
+          setEnemyImmunityOverlay({
+            active: true,
+            command: verb,
+            enemyName: activeEnemy.name,
+            whyFailed: activeEnemy.failureReason || `Standard ${verb} commands bounce off ${activeEnemy.name}'s data structure shield.`,
+            requiredConcept: activeEnemy.requiredConcept || `Specialized command required: ${activeEnemy.counterGem}`,
+            hint: `${activeEnemy.counterGem} ${activeEnemy.shieldKey || ''}`,
+          })
+        }
+      } else if (verb === 'DEL') {
         enemies.forEach((en) => {
           if (en.shieldKey === arg1 && en.hp > 0) {
             en.hp = Math.max(0, en.hp - 30)
@@ -693,6 +800,43 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
                   </div>
                 )
               })}
+          </div>
+        )}
+
+        {/* Strategic Immunity Hint Dialog / HUD Overlay */}
+        {enemyImmunityOverlay?.active && (
+          <div className="absolute top-16 right-4 max-w-sm p-3.5 bg-slate-900/95 border-2 border-red-500/80 rounded-xl shadow-[0_0_24px_rgba(239,68,68,0.4)] backdrop-blur-md z-30 font-mono text-slate-100 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-red-500/30 pb-1 mb-2">
+              <span className="text-xs font-bold text-red-400 tracking-wider flex items-center gap-1.5">
+                🛡️ SHIELD IMMUNITY DETECTED
+              </span>
+              <button
+                onClick={() => setEnemyImmunityOverlay(null)}
+                className="text-slate-400 hover:text-white text-xs font-bold px-1"
+                title="Dismiss overlay"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="text-xs text-red-300 font-bold mb-2 leading-tight">
+              Immune to {enemyImmunityOverlay.command}! The {enemyImmunityOverlay.enemyName}'s shield bounced your attack!
+            </div>
+            <div className="text-[10px] space-y-1.5 bg-slate-950/90 p-2.5 rounded border border-red-500/30">
+              <div>
+                <span className="text-amber-400 font-bold">WHY ATTACK FAILED:</span>{' '}
+                <span className="text-slate-300">{enemyImmunityOverlay.whyFailed}</span>
+              </div>
+              <div>
+                <span className="text-cyan-400 font-bold">REQUIRED STRATEGY / CONCEPT:</span>{' '}
+                <span className="text-cyan-300 font-bold">{enemyImmunityOverlay.requiredConcept}</span>
+              </div>
+              {enemyImmunityOverlay.hint && (
+                <div>
+                  <span className="text-emerald-400 font-bold">COUNTER COMMAND HINT:</span>{' '}
+                  <code className="text-emerald-300 font-bold bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">{enemyImmunityOverlay.hint}</code>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

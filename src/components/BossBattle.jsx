@@ -173,6 +173,46 @@ export default function BossBattle({ className = '' }) {
           </p>
         </div>
 
+        {/* Strategic Immunity HUD Overlay */}
+        {boss.immunityShield?.active && (
+          <div className="animate-toastIn relative rounded-lg border-2 border-red/80 bg-panel2/90 p-3 shadow-glow-red font-mono text-fg backdrop-blur-md">
+            <div className="flex items-center justify-between border-b border-red/30 pb-1 mb-2">
+              <span className="text-[11px] font-bold tracking-wider text-red flex items-center gap-1.5 glow-text-red">
+                🛡️ SHIELD IMMUNITY DETECTED
+              </span>
+              <button
+                type="button"
+                onClick={() => useGameStore.getState().dismissBossImmunity()}
+                className="text-[10px] text-dim hover:text-fg px-1 font-bold"
+                title="Dismiss immunity overlay"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-[11px] font-bold text-red shadow-glow-red">
+              Immune to {boss.immunityShield.command}! The boss's data structure requires a specific command type!
+            </p>
+
+            <div className="mt-2 space-y-1.5 rounded border border-red/30 bg-panel/80 p-2 text-[10px]">
+              <div>
+                <span className="font-bold text-amber">WHY ATTACK FAILED:</span>{' '}
+                <span className="text-dim">{boss.immunityShield.whyFailed}</span>
+              </div>
+              <div>
+                <span className="font-bold text-cyan">REQUIRED STRATEGY / CONCEPT:</span>{' '}
+                <span className="text-cyan font-bold glow-text">{boss.immunityShield.requiredConcept}</span>
+              </div>
+              {boss.immunityShield.hint && (
+                <div>
+                  <span className="font-bold text-green">COUNTER COMMAND HINT:</span>{' '}
+                  <code className="text-green font-bold bg-panel2 px-1 py-0.5 rounded border border-edge">{boss.immunityShield.hint}</code>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* last result feedback */}
         {result && (
           <div

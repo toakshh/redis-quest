@@ -75,6 +75,9 @@ export const BOSSES = [
         key: 'quest:start',
         task: 'Create a string `quest:start` holding the value `begun`.',
         hint: 'SET quest:start begun',
+        requiredCommand: 'SET',
+        requiredConcept: 'String Storage (SET)',
+        failureReason: 'Standard operations bounce off the uninitialized string lock.',
         damage: 18,
         xp: 15,
         check: (engine, entry) => entry && entry.type === 'string' && entry.value === 'begun',
@@ -83,6 +86,9 @@ export const BOSSES = [
         key: 'quest:map',
         task: 'Cartograph the vault: build a hash `quest:map` with at least 3 fields.',
         hint: 'HSET quest:map north 1 east 2 south 3',
+        requiredCommand: 'HSET',
+        requiredConcept: 'Hash Map Structures (HSET)',
+        failureReason: 'Single key-value operations cannot penetrate the multi-field hash shield.',
         damage: 18,
         xp: 20,
         check: (engine, entry) => entry && entry.type === 'hash' && entry.value.size >= 3,
@@ -91,6 +97,9 @@ export const BOSSES = [
         key: 'quest:trail',
         task: 'Carve a breadcrumb trail: a list `quest:trail` with at least 2 elements.',
         hint: 'RPUSH quest:trail alpha beta',
+        requiredCommand: 'RPUSH',
+        requiredConcept: 'List Queue Operations (RPUSH/LPUSH)',
+        failureReason: 'Hash or string attacks bounce off the list trail barrier.',
         damage: 18,
         xp: 20,
         check: (engine, entry) => entry && entry.type === 'list' && entry.value.length >= 2,
@@ -99,6 +108,9 @@ export const BOSSES = [
         key: 'quest:tokens',
         task: 'Forge access tokens: a set `quest:tokens` with at least 3 members.',
         hint: 'SADD quest:tokens red green blue',
+        requiredCommand: 'SADD',
+        requiredConcept: 'Set Uniqueness (SADD)',
+        failureReason: 'Ordered structures bounce off the unordered set barrier.',
         damage: 18,
         xp: 20,
         check: (engine, entry) => entry && entry.type === 'set' && entry.value.size >= 3,
@@ -107,6 +119,9 @@ export const BOSSES = [
         key: 'quest:ranks',
         task: 'Rank the glyphs: a sorted set `quest:ranks` with at least 2 members.',
         hint: 'ZADD quest:ranks 1 alpha 2 beta',
+        requiredCommand: 'ZADD',
+        requiredConcept: 'Sorted Set Scores (ZADD)',
+        failureReason: 'Unscored set operations fail against the sorted set ranking shield.',
         damage: 18,
         xp: 25,
         check: (engine, entry) => entry && entry.type === 'zset' && entry.value.length >= 2,
@@ -115,6 +130,9 @@ export const BOSSES = [
         key: 'quest:beacon',
         task: 'Plant a timed beacon: set `quest:beacon` to `on`, then expire it in 60 seconds.',
         hint: 'SET quest:beacon on  then  EXPIRE quest:beacon 60',
+        requiredCommand: 'EXPIRE',
+        requiredConcept: 'Time-To-Live Expiration (EXPIRE/TTL)',
+        failureReason: 'Permanent key writes cannot activate the timed beacon. Expiration TTL is required.',
         damage: 22,
         xp: 30,
         check: (engine, entry) =>
@@ -132,6 +150,9 @@ export const BOSSES = [
         key: 'tangle:seed',
         task: 'Plant the seed: create `tangle:seed` with value `start`.',
         hint: 'SET tangle:seed start',
+        requiredCommand: 'SET',
+        requiredConcept: 'String Initialization (SET)',
+        failureReason: 'The Tangler repels attacks until the seed key is created.',
         damage: 20,
         xp: 20,
         check: (engine, entry) => entry && entry.type === 'string' && entry.value === 'start',
@@ -140,6 +161,9 @@ export const BOSSES = [
         key: 'tangle:seed',
         task: 'Prepend using GETRANGE/SETRANGE: overwrite `tangle:seed` to have prefix `tangled_`.',
         hint: 'SETRANGE tangle:seed 0 tangled_',
+        requiredCommand: 'SETRANGE',
+        requiredConcept: 'String In-Place Modification (SETRANGE)',
+        failureReason: 'Standard SET overwrites bounce off; in-place SETRANGE modification is required.',
         damage: 20,
         xp: 20,
         check: (engine, entry) => entry && entry.type === 'string' && entry.value.startsWith('tangled_'),
@@ -148,6 +172,9 @@ export const BOSSES = [
         key: 'tangle:counter',
         task: 'Spin the counter: INCRBYFLOAT `tangle:counter` by 1.5 from 0.',
         hint: 'INCRBYFLOAT tangle:counter 1.5',
+        requiredCommand: 'INCRBYFLOAT',
+        requiredConcept: 'Decimal Counters (INCRBYFLOAT)',
+        failureReason: 'Integer or string assignments fail against floating point precision shields.',
         damage: 20,
         xp: 20,
         check: (engine, entry) => entry && entry.type === 'string' && parseFloat(entry.value) === 1.5,
@@ -156,6 +183,9 @@ export const BOSSES = [
         key: 'tangle:frag',
         task: 'Extract a fragment: GETRANGE `tangle:frag` 0 4 should return `frag_`.',
         hint: 'SET tangle:frag fragment  then  GETRANGE tangle:frag 0 4',
+        requiredCommand: 'GETRANGE',
+        requiredConcept: 'Substring Extraction (GETRANGE)',
+        failureReason: 'The fragment is buried; GETRANGE substring extraction is required.',
         damage: 20,
         xp: 20,
         check: (engine, entry) => entry && entry.type === 'string' && entry.value === 'fragment',
@@ -164,6 +194,9 @@ export const BOSSES = [
         key: 'tangle:final',
         task: 'Seal the knot: SET `tangle:final` to `knotted` with EXPIRE 30.',
         hint: 'SET tangle:final knotted  then  EXPIRE tangle:final 30',
+        requiredCommand: 'EXPIRE',
+        requiredConcept: 'Key TTL Expiration (EXPIRE)',
+        failureReason: 'Static keys dissolve; key expiration TTL is required to seal the knot.',
         damage: 20,
         xp: 25,
         check: (engine, entry) =>
@@ -181,6 +214,9 @@ export const BOSSES = [
         key: 'log:inbox',
         task: 'Initialize the inbox: RPUSH `log:inbox` with `job1` `job2`.',
         hint: 'RPUSH log:inbox job1 job2',
+        requiredCommand: 'RPUSH',
+        requiredConcept: 'List Push Operations (RPUSH)',
+        failureReason: 'Single values bounce off the queue intake; list RPUSH is required.',
         damage: 22,
         xp: 25,
         check: (engine, entry) => entry && entry.type === 'list' && entry.value.length >= 2,
@@ -189,6 +225,9 @@ export const BOSSES = [
         key: 'log:urgent',
         task: 'Priority insert: LINSERT `log:inbox` BEFORE `job1` value `urgent`.',
         hint: 'LINSERT log:inbox BEFORE job1 urgent',
+        requiredCommand: 'LINSERT',
+        requiredConcept: 'List Element Insertion (LINSERT)',
+        failureReason: 'Appending to the tail fails priority rules; positional LINSERT is required.',
         damage: 22,
         xp: 25,
         check: (engine, entry) =>
@@ -198,6 +237,9 @@ export const BOSSES = [
         key: 'log:processed',
         task: 'Process jobs: LPOP `log:inbox` until empty, RPUSH each to `log:processed`.',
         hint: 'LPOP log:inbox  (repeat)  then  RPUSH log:processed ...',
+        requiredCommand: 'LPOP',
+        requiredConcept: 'Queue Consumption & Pipeline (LPOP/RPUSH)',
+        failureReason: 'Unprocessed inbox jobs block the pipeline. Consume with LPOP and route with RPUSH.',
         damage: 22,
         xp: 25,
         check: (engine, entry) => entry && entry.type === 'list' && entry.value.length >= 3,
@@ -206,14 +248,20 @@ export const BOSSES = [
         key: 'log:blocking',
         task: 'Demonstrate blocking: BLPOP `log:blocking` 1 (should timeout gracefully).',
         hint: 'BLPOP log:blocking 1',
+        requiredCommand: 'BLPOP',
+        requiredConcept: 'Blocking Queue Operations (BLPOP)',
+        failureReason: 'Non-blocking pops fail worker synchronization tests. Use BLPOP.',
         damage: 22,
         xp: 25,
-        check: () => true, // Blocking commands with empty list return nil - hard to test, accept any attempt
+        check: () => true,
       },
       {
         key: 'log:archive',
         task: 'Archive old: LTRIM `log:processed` 0 1 (keep only 2 most recent).',
         hint: 'LTRIM log:processed 0 1',
+        requiredCommand: 'LTRIM',
+        requiredConcept: 'List Range Trimming (LTRIM)',
+        failureReason: 'Deleting whole keys clears history; LTRIM range trimming is required.',
         damage: 22,
         xp: 25,
         check: (engine, entry) => entry && entry.type === 'list' && entry.value.length <= 2,
@@ -230,6 +278,9 @@ export const BOSSES = [
         key: 'ward:gate',
         task: 'Open the gate: SADD `ward:gate` members `a` `b` `c`.',
         hint: 'SADD ward:gate a b c',
+        requiredCommand: 'SADD',
+        requiredConcept: 'Set Uniqueness (SADD)',
+        failureReason: 'Lists and strings permit duplicate noise. SADD set membership required.',
         damage: 20,
         xp: 22,
         check: (engine, entry) => entry && entry.type === 'set' && entry.value.size >= 3,
@@ -238,6 +289,9 @@ export const BOSSES = [
         key: 'ward:intersect',
         task: 'Find common: SINTERSTORE `ward:common` `ward:gate` `ward:other` (setup other first).',
         hint: 'SADD ward:other b c d  then  SINTERSTORE ward:common ward:gate ward:other',
+        requiredCommand: 'SINTERSTORE',
+        requiredConcept: 'Set Intersections (SINTERSTORE)',
+        failureReason: 'Manual comparison fails; atomic SINTERSTORE intersection is required.',
         damage: 20,
         xp: 22,
         check: (engine, entry) => entry && entry.type === 'set' && entry.value.size >= 2,
@@ -246,6 +300,9 @@ export const BOSSES = [
         key: 'ward:union',
         task: 'Unite forces: SUNIONSTORE `ward:all` `ward:gate` `ward:other`.',
         hint: 'SUNIONSTORE ward:all ward:gate ward:other',
+        requiredCommand: 'SUNIONSTORE',
+        requiredConcept: 'Set Unions (SUNIONSTORE)',
+        failureReason: 'Single set operations bounce off the Warden\'s combined force shield.',
         damage: 20,
         xp: 22,
         check: (engine, entry) => entry && entry.type === 'set' && entry.value.size >= 4,
@@ -254,6 +311,9 @@ export const BOSSES = [
         key: 'ward:diff',
         task: 'Exclude traitors: SDIFFSTORE `ward:loyal` `ward:gate` `ward:other`.',
         hint: 'SDIFFSTORE ward:loyal ward:gate ward:other',
+        requiredCommand: 'SDIFFSTORE',
+        requiredConcept: 'Set Differences (SDIFFSTORE)',
+        failureReason: 'Traitors linger without SDIFFSTORE set difference operations.',
         damage: 20,
         xp: 22,
         check: (engine, entry) => entry && entry.type === 'set' && entry.value.has('a'),
@@ -262,6 +322,9 @@ export const BOSSES = [
         key: 'ward:final',
         task: 'Final muster: SCARD `ward:all` >= 4 and SPOP one member.',
         hint: 'SCARD ward:all  then  SPOP ward:all',
+        requiredCommand: 'SPOP',
+        requiredConcept: 'Set Atomic Extraction (SPOP)',
+        failureReason: 'Reading without removing fails the final muster test. SPOP required.',
         damage: 20,
         xp: 25,
         check: (engine, entry) => entry && entry.type === 'set' && entry.value.size >= 3,
@@ -278,6 +341,9 @@ export const BOSSES = [
         key: 'prop:deed',
         task: 'File the deed: HSET `prop:deed` field `owner` value `magnate`.',
         hint: 'HSET prop:deed owner magnate',
+        requiredCommand: 'HSET',
+        requiredConcept: 'Hash Field Storage (HSET)',
+        failureReason: 'Flat key-value strings bounce off property records. HSET required.',
         damage: 25,
         xp: 25,
         check: (engine, entry) => entry && entry.type === 'hash' && entry.value.get('owner') === 'magnate',
@@ -286,6 +352,9 @@ export const BOSSES = [
         key: 'prop:portfolio',
         task: 'Build portfolio: HMSET `prop:portfolio` `addr` `123 Main` `price` `500000` `status` `owned`.',
         hint: 'HMSET prop:portfolio addr "123 Main" price 500000 status owned',
+        requiredCommand: 'HMSET',
+        requiredConcept: 'Multi-Field Hash Portfolios (HMSET)',
+        failureReason: 'Single field deeds are insufficient. HMSET portfolio creation required.',
         damage: 25,
         xp: 25,
         check: (engine, entry) =>
@@ -299,14 +368,20 @@ export const BOSSES = [
         key: 'prop:scan',
         task: 'Survey holdings: HSCAN `prop:portfolio` 0 MATCH `addr*` COUNT 10.',
         hint: 'HSCAN prop:portfolio 0 MATCH addr* COUNT 10',
+        requiredCommand: 'HSCAN',
+        requiredConcept: 'Non-Blocking Iteration (HSCAN)',
+        failureReason: 'Blocking key scans disrupt the city. Use HSCAN for non-blocking iteration.',
         damage: 25,
         xp: 25,
-        check: () => true, // HSCAN returns results - accept attempt
+        check: () => true,
       },
       {
         key: 'prop:increment',
         task: 'Appraise value: HINCRBYFLOAT `prop:portfolio` `price` 50000.',
         hint: 'HINCRBYFLOAT prop:portfolio price 50000',
+        requiredCommand: 'HINCRBYFLOAT',
+        requiredConcept: 'Hash Numeric Appraisal (HINCRBYFLOAT)',
+        failureReason: 'Overwriting field values loses historical appraisal. Use HINCRBYFLOAT.',
         damage: 25,
         xp: 30,
         check: (engine, entry) =>
@@ -316,6 +391,9 @@ export const BOSSES = [
         key: 'prop:final',
         task: 'Seal the empire: HSETNX `prop:final` `sealed` `true` (only if not exists).',
         hint: 'HSETNX prop:final sealed true',
+        requiredCommand: 'HSETNX',
+        requiredConcept: 'Idempotent Claims (HSETNX)',
+        failureReason: 'Standard HSET is not idempotent. HSETNX is required to seal the empire.',
         damage: 25,
         xp: 30,
         check: (engine, entry) =>
@@ -764,6 +842,7 @@ export const useGameStore = create((set, get) => {
         health: nextHealth,
         challengeIndex,
         defeated,
+        immunityShield: null,
         lastResult: {
           at: Date.now(),
           ok: true,
@@ -801,14 +880,19 @@ export const useGameStore = create((set, get) => {
 
     let solved = false
     try {
-      solved = challenge.check(engine, engine.store.get(challenge.key))
+      solved = challenge.check(engine, engine.store.get(challenge.key), reply)
     } catch {
       solved = false
     }
 
     if (solved) {
       attackBoss(challenge.damage, { xp: challenge.xp, challenge })
-    } else if (reply && reply.type === 'error') {
+    } else {
+      const lastCmd = engine.commandHistory[engine.commandHistory.length - 1]
+      const cmdName = lastCmd ? lastCmd.command.toUpperCase() : (reply?.type === 'error' ? 'INVALID' : 'ATTACK')
+      const requiredConcept = challenge.requiredConcept || challenge.requiredCommand || (challenge.hint ? challenge.hint.split(' ')[0] : 'a specific command type')
+      const failureReason = challenge.failureReason || `Standard ${cmdName} operations bounce off ${boss.name}'s data structure shield.`
+
       set((s) => ({
         boss: {
           ...s.boss,
@@ -817,8 +901,18 @@ export const useGameStore = create((set, get) => {
             ok: false,
             damage: 0,
             xp: 0,
-            message: 'SHIELD HOLDS — the vault rejects that.',
+            message: `Immune to ${cmdName}! The boss's data structure requires ${requiredConcept}!`,
             hint: challenge.hint,
+          },
+          immunityShield: {
+            active: true,
+            command: cmdName,
+            bossName: boss.name,
+            whyFailed: failureReason,
+            requiredConcept: requiredConcept,
+            hint: challenge.hint,
+            task: challenge.task,
+            at: Date.now(),
           },
         },
       }))
@@ -1141,6 +1235,7 @@ export const useGameStore = create((set, get) => {
           challengeIndex: 0,
           challenges: def.challenges,
           defeated: false,
+          immunityShield: null,
           lastResult: {
             at: Date.now(),
             ok: true,
@@ -1150,6 +1245,18 @@ export const useGameStore = create((set, get) => {
           },
         },
       }))
+    },
+
+    dismissBossImmunity() {
+      set((s) => {
+        if (!s.boss) return {}
+        return {
+          boss: {
+            ...s.boss,
+            immunityShield: null,
+          },
+        }
+      })
     },
 
     unlockAchievement(id) {
