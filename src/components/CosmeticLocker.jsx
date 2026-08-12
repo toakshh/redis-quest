@@ -152,8 +152,8 @@ function CosmeticCard({ cosmetic, type, owned, equipped, onEquip, onUnlock, prev
 
 function CosmeticTypeSection({ type, label, icon, desc, cosmetics, ownedCosmetics, equippedCosmetics, onEquip, onUnlock }) {
   const typeCosmetics = cosmetics.filter(c => c.type === type)
-  const typeOwned = typeCosmetics.filter(c => ownedCosmetics.includes(c.id))
-  const typeEquipped = equippedCosmetics[type]
+  const typeOwned = typeCosmetics.filter(c => ownedCosmetics ? (Array.isArray(ownedCosmetics) ? ownedCosmetics.includes(c.id) : Boolean(ownedCosmetics[c.id])) : false)
+  const typeEquipped = equippedCosmetics?.[type]
 
   return (
     <div className="panel flex flex-col">
@@ -185,8 +185,8 @@ function CosmeticTypeSection({ type, label, icon, desc, cosmetics, ownedCosmetic
                 key={cosmetic.id}
                 cosmetic={cosmetic}
                 type={type}
-                owned={ownedCosmetics.includes(cosmetic.id)}
-                equipped={equippedCosmetics[type] === cosmetic.id}
+                owned={ownedCosmetics ? (Array.isArray(ownedCosmetics) ? ownedCosmetics.includes(cosmetic.id) : Boolean(ownedCosmetics[cosmetic.id])) : false}
+                equipped={equippedCosmetics?.[type] === cosmetic.id}
                 onEquip={() => onEquip(cosmetic.id)}
                 onUnlock={() => onUnlock(cosmetic.id)}
               />
@@ -210,12 +210,13 @@ export default function CosmeticLocker({ className = '' }) {
 
   // Check unlock criteria for display
   const getUnlockStatus = (cosmetic) => {
-    if (ownedCosmetics.includes(cosmetic.id)) return { unlocked: true }
+    const isOwned = ownedCosmetics ? (Array.isArray(ownedCosmetics) ? ownedCosmetics.includes(cosmetic.id) : Boolean(ownedCosmetics[cosmetic.id])) : false
+    if (isOwned) return { unlocked: true }
     const criteria = cosmetic.unlockCriteria
     if (!criteria) return { unlocked: false, reason: 'Unknown' }
     if (criteria.default) return { unlocked: true }
     if (criteria.level && level < criteria.level) return { unlocked: false, reason: `Level ${criteria.level} required` }
-    if (criteria.achievement && !unlocked[criteria.achievement]) return { unlocked: false, reason: `Achievement: ${criteria.achievement}` }
+    if (criteria.achievement && (!unlocked || !unlocked[criteria.achievement])) return { unlocked: false, reason: `Achievement: ${criteria.achievement}` }
     return { unlocked: false, reason: 'Requirements not met' }
   }
 
@@ -235,14 +236,14 @@ export default function CosmeticLocker({ className = '' }) {
           <span className="glow-text text-xl font-bold text-purple">🎨</span>
           <div>
             <h2 className="text-lg font-bold tracking-widest text-purple">COSMETIC LOCKER</h2>
-            <p className="text-[9px] tracking-[0.2em] text-dim">Customize your look — {ownedCosmetics.length}/{COSMETICS.length} unlocked</p>
+            <p className="text-[9px] tracking-[0.2em] text-dim">Customize your look — {ownedCosmetics ? (Array.isArray(ownedCosmetics) ? ownedCosmetics.length : Object.keys(ownedCosmetics).length) : 0}/{COSMETICS.length} unlocked</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {/* Equipped summary */}
           <div className="flex gap-1">
             {COSMETIC_TYPES.map(t => {
-              const equipped = equippedCosmetic[t.key]
+              const equipped = equippedCosmetic?.[t.key]
               const cosmetic = equipped ? getCosmeticById(equipped) : getDefaultCosmetic(t.key)
               return (
                 <div key={t.key} className="w-8 h-8 rounded border-2 flex items-center justify-center text-sm" style={{ borderColor: cosmetic ? RARITY_COLORS[cosmetic.rarity] : 'var(--edge)' }} title={cosmetic?.name || 'None'}>

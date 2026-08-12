@@ -61,8 +61,8 @@ export default function Header({ engine, className = '' }) {
         ? 'bg-amber'
         : 'bg-cyan shadow-glow'
 
-  const skillsUnlocked = Object.keys(unlockedSkills).length
-  const regionsUnlocked = Object.keys(unlockedRegions).length
+  const skillsUnlocked = unlockedSkills ? (Array.isArray(unlockedSkills) ? unlockedSkills.length : Object.keys(unlockedSkills).length) : 0
+  const regionsUnlocked = unlockedRegions ? (Array.isArray(unlockedRegions) ? unlockedRegions.length : Object.keys(unlockedRegions).length) : 0
 
   return (
     <header

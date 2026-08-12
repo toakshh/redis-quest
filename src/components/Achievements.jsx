@@ -7,7 +7,7 @@ export default function Achievements({ className = '' }) {
   const dismissToast = useGameStore((s) => s.dismissToast)
 
   const total = ACHIEVEMENTS.length
-  const count = ACHIEVEMENTS.filter((a) => unlocked[a.id]).length
+  const count = ACHIEVEMENTS.filter((a) => unlocked ? (Array.isArray(unlocked) ? unlocked.includes(a.id) : Boolean(unlocked[a.id])) : false).length
   const pct = total > 0 ? (count / total) * 100 : 0
 
   return (
@@ -34,7 +34,7 @@ export default function Achievements({ className = '' }) {
         {/* badge grid */}
         <div className="grid min-h-0 flex-1 grid-cols-2 content-start gap-2 overflow-y-auto p-3 sm:grid-cols-3">
           {ACHIEVEMENTS.map((a) => {
-            const isUnlocked = Boolean(unlocked[a.id])
+            const isUnlocked = unlocked ? (Array.isArray(unlocked) ? unlocked.includes(a.id) : Boolean(unlocked[a.id])) : false
             return (
               <div
                 key={a.id}

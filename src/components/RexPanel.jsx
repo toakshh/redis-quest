@@ -356,7 +356,7 @@ export default function RexPanel({ className = '' }) {
 
   // Auto-scroll to bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' })
   }, [messages])
 
   const handlePersonalityChange = (newPersonality) => {

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useGameStore } from '../store/gameStore.js'
 import { saveManager } from '../systems/SaveManager.js'
 
@@ -173,7 +174,7 @@ export default function SettingsPanel({ className = '' }) {
   const [exportData, setExportData] = useState(null)
   const [exportSlot, setExportSlot] = useState(0)
 
-  const saveSlots = getSaveSlots()
+  const saveSlots = saveManager.getSaveSlots ? saveManager.getSaveSlots() : (getSaveSlots ? getSaveSlots() : [])
   const currentSlot = saveSlots.findIndex(s => s.exists) >= 0 ? saveSlots.findIndex(s => s.exists) : 0
 
   const handleImport = (slotId) => {

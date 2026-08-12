@@ -72,7 +72,7 @@ export default function JuiceOverlay({ className = '' }) {
   useEffect(() => {
     // Apply theme CSS variables from cosmetic system
     const applyTheme = () => {
-      const juice = getJuiceSystem()
+      const juice = getJuiceSystem ? getJuiceSystem() : null
       if (juice) {
         // The cosmetic system already applies theme to document.documentElement
         // This overlay just needs to render particles and effects

@@ -172,7 +172,7 @@ export default function Terminal({ engine, onSubmit, onExecute }) {
   const inputRef = useRef(null)
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' })
+    endRef.current?.scrollIntoView?.({ block: 'end' })
   }, [output])
 
   const runCommand = (event) => {

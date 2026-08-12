@@ -2,6 +2,30 @@ import { useGameStore } from '../store/gameStore.js'
 import { REGIONS } from '../data/regions.js'
 import { SKILLS } from '../data/skills.js'
 
+const skillTreeSystem = {
+  canUnlock(skillId, state) {
+    const skill = SKILLS.find(s => s.id === skillId)
+    if (!skill) return { can: false, reason: 'Skill not found' }
+    if (state.unlockedSkills?.[skillId] || (Array.isArray(state.unlockedSkills) && state.unlockedSkills.includes(skillId))) return { can: false, reason: 'Already unlocked' }
+
+    // Check prerequisites
+    for (const prereqId of skill.prerequisites || []) {
+      const isPrereqUnlocked = Array.isArray(state.unlockedSkills) ? state.unlockedSkills.includes(prereqId) : state.unlockedSkills?.[prereqId]
+      if (!isPrereqUnlocked) {
+        const prereq = SKILLS.find(s => s.id === prereqId)
+        return { can: false, reason: `Requires: ${prereq?.name || prereqId}` }
+      }
+    }
+
+    // Check region unlocked
+    if (skill.regionId && !state.unlockedRegions?.[skill.regionId] && skill.regionId !== 'strings') {
+      return { can: false, reason: `Region locked: ${skill.regionId}` }
+    }
+
+    return { can: true }
+  }
+}
+
 const RARITY_COLORS = {
   common: '#64748b',
   uncommon: '#22d3ee',
@@ -145,7 +169,7 @@ export default function SkillTreePanel({ className = '' }) {
   // Build skills with computed unlock states
   const skillsWithState = SKILLS.map(skill => ({
     ...skill,
-    unlocked: unlockedSkills[skill.id] === true,
+    unlocked: Array.isArray(unlockedSkills) ? unlockedSkills.includes(skill.id) : unlockedSkills?.[skill.id] === true,
     canUnlock: (() => {
       const check = skillTreeSystem.canUnlock(skill.id, {
         unlockedRegions,
@@ -153,39 +177,8 @@ export default function SkillTreePanel({ className = '' }) {
       })
       return check.can
     })(),
-    prerequisitesMet: skill.prerequisites.every(p => unlockedSkills[p]),
+    prerequisitesMet: skill.prerequisites ? skill.prerequisites.every(p => Array.isArray(unlockedSkills) ? unlockedSkills.includes(p) : unlockedSkills?.[p]) : true,
   }))
-
-  // Need access to skillTreeSystem for canUnlock checks
-  // We'll import it or compute locally
-  // For now, let's compute canUnlock inline
-  const skillTreeSystem = {
-    canUnlock(skillId, state) {
-      const skill = SKILLS.find(s => s.id === skillId)
-      if (!skill) return { can: false, reason: 'Skill not found' }
-      if (unlockedSkills[skillId]) return { can: false, reason: 'Already unlocked' }
-
-      // Check prerequisites
-      for (const prereqId of skill.prerequisites) {
-        if (!unlockedSkills[prereqId]) {
-          const prereq = SKILLS.find(s => s.id === prereqId)
-          return { can: false, reason: `Requires: ${prereq?.name || prereqId}` }
-        }
-      }
-
-      // Check region unlocked
-      if (!state.unlockedRegions[skill.regionId] && skill.regionId !== 'strings') {
-        return { can: false, reason: `Region locked: ${skill.regionId}` }
-      }
-
-      // Check skill points
-      if (skillPoints < skill.xpCost) {
-        return { can: false, reason: `Need ${skill.xpCost} SP (have ${skillPoints})` }
-      }
-
-      return { can: true }
-    },
-  }
 
   const handleUnlock = (skillId) => {
     const result = unlockSkill(skillId)
@@ -226,12 +219,12 @@ export default function SkillTreePanel({ className = '' }) {
       <div className="border-b border-edge px-4 py-2">
         <div className="flex items-center justify-between text-[10px] text-dim mb-1">
           <span>Overall Progress</span>
-          <span>{Object.keys(unlockedSkills).length}/60 skills</span>
+          <span>{unlockedSkills ? (Array.isArray(unlockedSkills) ? unlockedSkills.length : Object.keys(unlockedSkills).length) : 0}/60 skills</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-panel2">
           <div
             className="h-full rounded-full bg-gradient-to-r from-cyan via-amber to-purple transition-[width] duration-500"
-            style={{ width: `${(Object.keys(unlockedSkills).length / 60) * 100}%` }}
+            style={{ width: `${((unlockedSkills ? (Array.isArray(unlockedSkills) ? unlockedSkills.length : Object.keys(unlockedSkills).length) : 0) / 60) * 100}%` }}
           />
         </div>
       </div>
@@ -239,25 +232,30 @@ export default function SkillTreePanel({ className = '' }) {
       {/* Regions grid */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {sortedRegions.map(region => (
-            <RegionPanel
-              key={region.id}
-              regionId={region.id}
-              region={{
-                ...region,
-                unlocked: unlockedRegions[region.id] === true || region.id === 'strings',
-                icon: region.id === 'strings' ? '📝' : region.id === 'hashes' ? '🗂️' :
-                      region.id === 'lists' ? '📋' : region.id === 'sets' ? '🔘' :
-                      region.id === 'zsets' ? '📈' : region.id === 'keyspace' ? '🔑' :
-                      region.id === 'pubsub' ? '📡' : region.id === 'transactions' ? '📦' :
-                      region.id === 'scripts' ? '📜' : region.id === 'streams' ? '🌊' :
-                      region.id === 'clustering' ? '🌟' : '🔮',
-              }}
-              skills={skillsWithState}
-              skillPoints={skillPoints}
-              onUnlockSkill={handleUnlock}
-            />
-          ))}
+          {sortedRegions.map(region => {
+            const isUnlocked = unlockedRegions
+              ? (Array.isArray(unlockedRegions) ? unlockedRegions.includes(region.id) : Boolean(unlockedRegions[region.id]))
+              : false
+            return (
+              <RegionPanel
+                key={region.id}
+                regionId={region.id}
+                region={{
+                  ...region,
+                  unlocked: isUnlocked || region.id === 'strings',
+                  icon: region.id === 'strings' ? '📝' : region.id === 'hashes' ? '🗂️' :
+                        region.id === 'lists' ? '📋' : region.id === 'sets' ? '🔘' :
+                        region.id === 'zsets' ? '📈' : region.id === 'keyspace' ? '🔑' :
+                        region.id === 'pubsub' ? '📡' : region.id === 'transactions' ? '📦' :
+                        region.id === 'scripts' ? '📜' : region.id === 'streams' ? '🌊' :
+                        region.id === 'clustering' ? '🌟' : '🔮',
+                }}
+                skills={skillsWithState}
+                skillPoints={skillPoints}
+                onUnlockSkill={handleUnlock}
+              />
+            )
+          })}
         </div>
       </div>
 

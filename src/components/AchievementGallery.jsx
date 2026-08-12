@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useGameStore } from '../store/gameStore.js'
 import { ACHIEVEMENTS, RARITY_COLORS, RARITY_LABELS, CATEGORY_LABELS, CATEGORY_ICONS } from '../data/achievements.js'
 
