@@ -98,7 +98,7 @@ export const REGION_MAPS = {
   },
 }
 
-export default function GameCanvas({ engine }) {
+export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, isTerminalDrawerOpen, onToggleTerminalDrawer }) {
   const canvasRef = useRef(null)
   const store = useGameStore()
 
@@ -132,8 +132,14 @@ export default function GameCanvas({ engine }) {
     const controls = new IsometricEngineControls({
       onMove: (dx, dy) => movePlayer(dx, dy),
       onInteract: () => interactCurrentTile(),
-      onToggleTerminal: () => setTerminalOpen((prev) => !prev),
-      isTerminalOpen: () => terminalOpen,
+      onToggleTerminal: () => {
+        if (onToggleTerminalDrawer) {
+          onToggleTerminalDrawer()
+        } else {
+          setTerminalOpen((prev) => !prev)
+        }
+      },
+      isTerminalOpen: () => isTerminalDrawerOpen || terminalOpen,
     })
 
     controls.attach(window)
@@ -256,6 +262,7 @@ export default function GameCanvas({ engine }) {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
+    if (!ctx) return
     let animationFrameId
 
     const render = () => {
@@ -382,10 +389,28 @@ export default function GameCanvas({ engine }) {
         </div>
 
         <div className="flex items-center gap-2">
+          {onToggleFullscreen && (
+            <button
+              onClick={onToggleFullscreen}
+              className={`px-3 py-1 text-xs rounded font-bold border transition-all ${
+                isFullscreen
+                  ? 'bg-amber-500 text-slate-950 border-amber-400'
+                  : 'bg-slate-800 text-cyan-400 border-cyan-500/30 hover:border-cyan-400'
+              }`}
+            >
+              ⛶ {isFullscreen ? 'EXIT FULLSCREEN' : 'FULLSCREEN'}
+            </button>
+          )}
           <button
-            onClick={() => setTerminalOpen(!terminalOpen)}
+            onClick={() => {
+              if (onToggleTerminalDrawer) {
+                onToggleTerminalDrawer()
+              } else {
+                setTerminalOpen(!terminalOpen)
+              }
+            }}
             className={`px-3 py-1 text-xs rounded font-bold border transition-all ${
-              terminalOpen
+              (isTerminalDrawerOpen || terminalOpen)
                 ? 'bg-amber-500 text-slate-950 border-amber-400'
                 : 'bg-slate-800 text-amber-400 border-amber-500/30 hover:border-amber-400'
             }`}

@@ -161,7 +161,7 @@ function HighlightedLine({ line }) {
   )
 }
 
-export default function Terminal({ engine, onSubmit, onExecute }) {
+export default function Terminal({ engine, onSubmit, onExecute, onCloseDrawer }) {
   const [output, setOutput] = useState([]) // { line, reply }
   const [input, setInput] = useState('')
   const [cmdHistory, setCmdHistory] = useState([]) // raw executed lines
@@ -224,11 +224,23 @@ export default function Terminal({ engine, onSubmit, onExecute }) {
 
   return (
     <div className="panel scanlines relative flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="flex items-center gap-1.5 border-b border-edge px-4 py-2">
-        <span className="h-2.5 w-2.5 rounded-full bg-red" />
-        <span className="h-2.5 w-2.5 rounded-full bg-amber" />
-        <span className="h-2.5 w-2.5 rounded-full bg-green" />
-        <span className="ml-2 text-xs tracking-widest text-dim">redis-cli · redis-quest</span>
+      <div className="flex items-center justify-between border-b border-edge px-4 py-2">
+        <div className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-red" />
+          <span className="h-2.5 w-2.5 rounded-full bg-amber" />
+          <span className="h-2.5 w-2.5 rounded-full bg-green" />
+          <span className="ml-2 text-xs tracking-widest text-dim">redis-cli · redis-quest</span>
+        </div>
+        {onCloseDrawer && (
+          <button
+            type="button"
+            onClick={onCloseDrawer}
+            aria-label="Close terminal drawer"
+            className="text-xs text-dim hover:text-fg px-1 py-0.5 rounded hover:bg-panel2 transition-colors font-mono"
+          >
+            ✕ HIDE (~)
+          </button>
+        )}
       </div>
 
       <div className="terminal-output min-h-0 flex-1 overflow-y-auto px-4 py-3">
