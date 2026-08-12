@@ -227,26 +227,45 @@ export class Camera {
     if (!this.worldBounds) return
     const halfW = this.viewportWidth / 2 / this.zoom
     const halfH = this.viewportHeight / 2 / this.zoom
-    const minX = this.worldBounds.x + halfW
-    const maxX = this.worldBounds.x + this.worldBounds.width - halfW
-    const minY = this.worldBounds.y + halfH
-    const maxY = this.worldBounds.y + this.worldBounds.height - halfH
 
-    this.targetPosition.x = Math.max(minX, Math.min(maxX, this.targetPosition.x))
-    this.targetPosition.y = Math.max(minY, Math.min(maxY, this.targetPosition.y))
+    // If the viewport is wider/taller than world bounds, center the camera on world bounds
+    if (this.worldBounds.width <= halfW * 2) {
+      this.targetPosition.x = this.worldBounds.x + this.worldBounds.width / 2
+    } else {
+      const minX = this.worldBounds.x + halfW
+      const maxX = this.worldBounds.x + this.worldBounds.width - halfW
+      this.targetPosition.x = Math.max(minX, Math.min(maxX, this.targetPosition.x))
+    }
+
+    if (this.worldBounds.height <= halfH * 2) {
+      this.targetPosition.y = this.worldBounds.y + this.worldBounds.height / 2
+    } else {
+      const minY = this.worldBounds.y + halfH
+      const maxY = this.worldBounds.y + this.worldBounds.height - halfH
+      this.targetPosition.y = Math.max(minY, Math.min(maxY, this.targetPosition.y))
+    }
   }
 
   _clampToBounds() {
     if (!this.worldBounds) return
     const halfW = this.viewportWidth / 2 / this.zoom
     const halfH = this.viewportHeight / 2 / this.zoom
-    const minX = this.worldBounds.x + halfW
-    const maxX = this.worldBounds.x + this.worldBounds.width - halfW
-    const minY = this.worldBounds.y + halfH
-    const maxY = this.worldBounds.y + this.worldBounds.height - halfH
 
-    this.position.x = Math.max(minX, Math.min(maxX, this.position.x))
-    this.position.y = Math.max(minY, Math.min(maxY, this.position.y))
+    if (this.worldBounds.width <= halfW * 2) {
+      this.position.x = this.worldBounds.x + this.worldBounds.width / 2
+    } else {
+      const minX = this.worldBounds.x + halfW
+      const maxX = this.worldBounds.x + this.worldBounds.width - halfW
+      this.position.x = Math.max(minX, Math.min(maxX, this.position.x))
+    }
+
+    if (this.worldBounds.height <= halfH * 2) {
+      this.position.y = this.worldBounds.y + this.worldBounds.height / 2
+    } else {
+      const minY = this.worldBounds.y + halfH
+      const maxY = this.worldBounds.y + this.worldBounds.height - halfH
+      this.position.y = Math.max(minY, Math.min(maxY, this.position.y))
+    }
   }
 }
 

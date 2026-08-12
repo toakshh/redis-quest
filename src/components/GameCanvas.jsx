@@ -3,39 +3,31 @@ import { GameLoop } from '../game/GameLoop.js'
 import { World } from '../game/World.js'
 import { drawIsoTile, drawIsoBlock, gridToIso, isoToGrid, TILE_WIDTH, TILE_HEIGHT } from '../game/IsometricRenderer.js'
 import { IsometricEngineControls } from '../game/IsometricEngine.js'
+import { Camera } from '../game/Camera.js'
 import { useGameStore } from '../store/gameStore.js'
 
 // Compute where an offscreen objective marker should sit on the viewport edge.
-// Uses the same tile-to-screen math as the render loop (centered on the canvas).
-function offscreenEdge(t, mapWidth, mapHeight, canvas) {
-  const cw = canvas?.clientWidth ?? 1200
-  const ch = canvas?.clientHeight ?? 700
-  const margin = 8
-  const pad = 24
+// Uses camera coordinate translation matching the render loop.
+function offscreenEdge(t, camera, canvasWidth, canvasHeight) {
+  const cw = canvasWidth || 1200
+  const ch = canvasHeight || 700
+  const margin = 20
 
-  // Rough on-screen bounds of the tile grid (iso diamonds extend beyond the math center)
-  const left = cw / 2 - ((mapWidth + mapHeight) / 2) * (TILE_WIDTH / 2) - pad
-  const right = cw / 2 + ((mapWidth + mapHeight) / 2) * (TILE_WIDTH / 2) + pad
-  const top = 120 - ((mapWidth + mapHeight) / 2) * (TILE_HEIGHT / 2) - pad
-  const bottom = 120 + ((mapWidth + mapHeight) / 2) * (TILE_HEIGHT / 2) + pad
+  // Check if position is currently on-screen with margin
+  const isOnScreen = t.x >= margin && t.x <= cw - margin && t.y >= margin + 60 && t.y <= ch - margin - 40
+  if (isOnScreen) return null
 
-  const x = t.x + (cw / 2 - t.x) * 0.98
-  const y = t.y + (ch / 2 - t.y) * 0.98
-
-  // Normalized direction from canvas center to the target
-  const dx = x - cw / 2
-  const dy = y - ch / 2
+  // Direction from canvas center to the target point
+  const dx = t.x - cw / 2
+  const dy = t.y - ch / 2
   const len = Math.max(1e-6, Math.sqrt(dx * dx + dy * dy))
 
   let ex = cw / 2 + (dx / len) * (cw / 2 - margin)
   let ey = ch / 2 + (dy / len) * (ch / 2 - margin)
 
-  // If the point is inside the visible map area, no edge marker is needed
-  if (x > left && x < right && y > top && y < bottom) return null
-
-  // Clamp to viewport edges
+  // Clamp to visible canvas edges
   ex = Math.max(margin, Math.min(cw - margin - 90, ex))
-  ey = Math.max(110, Math.min(ch - margin - 24, ey))
+  ey = Math.max(80, Math.min(ch - margin - 30, ey))
 
   const dir = dx === 0 && dy === 0 ? '' : `${dx >= 0 ? '→' : '←'}${Math.abs(dy) > Math.abs(dx) ? (dy >= 0 ? '↓' : '↑') : ''}`
   return { x: ex, y: ey, dir }
@@ -55,7 +47,7 @@ export const REGION_MAPS = {
     chests: [
       { id: 'mv_c1', gx: 4, gy: 4, gem: 'SET', key: 'quest:welcome', value: 'hello', looted: false },
       { id: 'mv_c2', gx: 14, gy: 5, gem: 'GET', key: 'quest:welcome', value: 'hello', looted: false },
-      { id: 'mv_c3', gx: 8, gy: 12, gem: 'EXPIRE', key: 'quest:temp', value: 'secret', looted: false },
+      { id: 'mv_c3', gx: 8, gy: 12, gem: 'DEL', key: 'quest:temp', value: 'secret', looted: false },
     ],
     enemies: [
       { id: 'mv_e1', name: 'Memory Goblin', gx: 10, gy: 8, hp: 30, maxHp: 30, shieldKey: 'goblin:shield', spell: 'SET goblin:shield 100', counterGem: 'DEL' },
@@ -136,6 +128,7 @@ export const REGION_MAPS = {
 
 export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, isTerminalDrawerOpen, onToggleTerminalDrawer }) {
   const canvasRef = useRef(null)
+  const containerRef = useRef(null)
   const store = useGameStore()
 
   // State
@@ -149,6 +142,8 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const [enemies, setEnemies] = useState(REGION_MAPS['memory-village'].enemies)
   const [battleMessage, setBattleMessage] = useState('')
 
+  // Camera instance ref
+  const cameraRef = useRef(new Camera({ viewportWidth: 1200, viewportHeight: 700, smoothFactor: 0.15 }))
   // Keep track of player position in ref for animation frame
   const playerRef = useRef({ gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' })
 
@@ -160,6 +155,8 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     setEnemies(map.enemies)
     playerRef.current = { gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' }
     setPlayerGridPos({ gx: 2, gy: 2 })
+    const initialIso = gridToIso(2, 2)
+    cameraRef.current.moveTo(initialIso.x, initialIso.y)
     setBattleMessage(`Entered ${map.name}`)
   }
 
@@ -191,6 +188,9 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         setInventoryGems((prev) => [...prev, chest.gem])
       }
       setBattleMessage(`✨ Interacted! Acquired Command Gem: [ ${chest.gem} ]`)
+      if (!store.objectiveBannerDismissed) {
+        store.dismissObjectiveBanner()
+      }
       if (engine) {
         engine.execute(`SET ${chest.key} "${chest.value}"`)
       }
@@ -219,6 +219,9 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
             setInventoryGems((prev) => [...prev, chest.gem])
           }
           setBattleMessage(`✨ Opened Chest! Acquired Command Gem: [ ${chest.gem} ]`)
+          if (!store.objectiveBannerDismissed) {
+            store.dismissObjectiveBanner()
+          }
           if (engine) {
             engine.execute(`SET ${chest.key} "${chest.value}"`)
           }
@@ -267,12 +270,10 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const questComplete = activeEnemyCount === 0 && unlootedChestCount === 0
 
   // Map tile screenspace coordinates for HUD markers (mirrors the render loop math)
-  const getTileScreenPos = (gx, gy, canvas) => {
+  const getTileScreenPos = (gx, gy) => {
     const map = REGION_MAPS[selectedRegion]
-    const offsetX = (canvas?.width ?? 1200) / 2
-    const offsetY = 120
     const iso = gridToIso(Math.max(0, Math.min(map.width - 1, gx)), Math.max(0, Math.min(map.height - 1, gy)))
-    return { x: offsetX + iso.x, y: offsetY + iso.y, mapWidth: map.width, mapHeight: map.height }
+    return cameraRef.current.worldToViewport(iso.x, iso.y)
   }
 
   // Handle in-game diegetic terminal command submit
@@ -307,6 +308,24 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     setTerminalInput('')
   }
 
+  // Dynamic Canvas Resizing & Camera Viewport update
+  useEffect(() => {
+    const updateCanvasSize = () => {
+      const container = containerRef.current
+      const canvas = canvasRef.current
+      if (!container || !canvas) return
+      const rect = container.getBoundingClientRect()
+      if (rect.width && rect.height) {
+        canvas.width = rect.width
+        canvas.height = rect.height
+        cameraRef.current.setViewportSize(rect.width, rect.height)
+      }
+    }
+    updateCanvasSize()
+    window.addEventListener('resize', updateCanvasSize)
+    return () => window.removeEventListener('resize', updateCanvasSize)
+  }, [])
+
   // Render loop
   useEffect(() => {
     const canvas = canvasRef.current
@@ -314,14 +333,14 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     let animationFrameId
+    let lastTime = performance.now()
 
-    const render = () => {
+    const render = (time) => {
+      const dt = Math.min(0.1, (time - lastTime) / 1000)
+      lastTime = time
+
       const map = REGION_MAPS[selectedRegion]
       ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-      // Center offset
-      const offsetX = canvas.width / 2
-      const offsetY = 120
 
       // Update player position smooth lerp
       const p = playerRef.current
@@ -331,12 +350,20 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         p.gy = p.gy + (p.targetGy - p.gy) * p.animProgress
       }
 
+      // Convert grid player position to world space for camera follow
+      const playerWorldIso = gridToIso(p.gx, p.gy)
+      cameraRef.current.follow(playerWorldIso)
+      cameraRef.current.update(dt)
+
+      // Apply camera view matrix transform
+      cameraRef.current.applyToContext(ctx)
+
       // Draw isometric map tiles
       for (let gx = 0; gx < map.width; gx++) {
         for (let gy = 0; gy < map.height; gy++) {
           const iso = gridToIso(gx, gy)
-          const screenX = offsetX + iso.x
-          const screenY = offsetY + iso.y
+          const screenX = iso.x
+          const screenY = iso.y
 
           const isChecker = (gx + gy) % 2 === 0
           const fillColor = isChecker ? map.tileColor1 : map.tileColor2
@@ -348,8 +375,8 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       // Draw chests
       chests.forEach((chest) => {
         const iso = gridToIso(chest.gx, chest.gy)
-        const screenX = offsetX + iso.x
-        const screenY = offsetY + iso.y
+        const screenX = iso.x
+        const screenY = iso.y
 
         if (chest.looted) {
           drawIsoBlock(ctx, screenX, screenY, 24, 12, 10, '#64748b', '#475569', '#334155')
@@ -395,8 +422,8 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       enemies.forEach((enemy) => {
         if (enemy.hp <= 0) return
         const iso = gridToIso(enemy.gx, enemy.gy)
-        const screenX = offsetX + iso.x
-        const screenY = offsetY + iso.y
+        const screenX = iso.x
+        const screenY = iso.y
 
         // Red monster block
         drawIsoBlock(ctx, screenX, screenY, 28, 14, 22, '#ef4444', '#dc2626', '#b91c1c')
@@ -445,8 +472,8 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
 
       // Draw Player Avatar (REX / Hero)
       const pIso = gridToIso(p.gx, p.gy)
-      const pScreenX = offsetX + pIso.x
-      const pScreenY = offsetY + pIso.y
+      const pScreenX = pIso.x
+      const pScreenY = pIso.y
 
       // Hero Cyan Block with animated bobbing
       const bob = Math.sin(Date.now() / 200) * 3
@@ -463,10 +490,13 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       ctx.textAlign = 'center'
       ctx.fillText('HERO (REX)', pScreenX, pScreenY - 42 - bob)
 
+      // Restore camera context transform
+      cameraRef.current.restoreContext(ctx)
+
       animationFrameId = requestAnimationFrame(render)
     }
 
-    render()
+    animationFrameId = requestAnimationFrame(render)
 
     return () => cancelAnimationFrame(animationFrameId)
   }, [selectedRegion, chests, enemies])
@@ -527,30 +557,39 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       </div>
 
       {/* Main Canvas Viewport - Expanded Full Width */}
-      <div className="relative flex-1 bg-slate-950 flex items-center justify-center overflow-hidden w-full h-full">
-        <canvas ref={canvasRef} width={1200} height={700} className="w-full h-full object-contain" />
+      <div ref={containerRef} className="relative flex-1 bg-slate-950 flex items-center justify-center overflow-hidden w-full h-full">
+        <canvas ref={canvasRef} className="w-full h-full block" />
 
         {/* Quest Objective Banner - prominent top guidance */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 max-w-[92%] w-fit px-4 py-2 bg-gradient-to-r from-cyan-950/95 via-slate-900/95 to-cyan-950/95 backdrop-blur border border-cyan-500/50 rounded-xl shadow-[0_0_24px_rgba(34,211,238,0.25)] z-20">
-          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[10px] sm:text-[11px] font-mono text-cyan-200 leading-snug">
-            <span className="font-black tracking-widest text-cyan-300">🎯 ACTIVE QUEST:</span>
-            <span className="text-slate-200">Move Hero using</span>
-            <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/40 text-cyan-300 font-bold">WASD</span>
-            <span className="text-slate-200">→ Walk to glowing</span>
-            <span className="px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-400/50 text-amber-300 font-bold">Chest</span>
-            <span className="text-slate-200">→ Press</span>
-            <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-amber-400/50 text-amber-300 font-bold">E</span>
-            <span className="text-slate-200">to open chest & acquire</span>
-            <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/50 text-emerald-300 font-bold">Command Gems</span>
-            <span className="text-slate-200">→ Defeat enemies using</span>
-            <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/50 text-emerald-300 font-bold">Gem Hotbar</span>
-            <span className="text-slate-200">/</span>
-            <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-amber-400/50 text-amber-300 font-bold">CLI Terminal (~)</span>
-            {questComplete && (
-              <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/60 text-emerald-300 font-black animate-pulse">✔ QUEST COMPLETE!</span>
-            )}
+        {!store.objectiveBannerDismissed && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 max-w-[92%] w-fit px-4 py-2 bg-gradient-to-r from-cyan-950/95 via-slate-900/95 to-cyan-950/95 backdrop-blur border border-cyan-500/50 rounded-xl shadow-[0_0_24px_rgba(34,211,238,0.25)] z-20 flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[10px] sm:text-[11px] font-mono text-cyan-200 leading-snug">
+              <span className="font-black tracking-widest text-cyan-300">🎯 ACTIVE QUEST:</span>
+              <span className="text-slate-200">Move Hero using</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/40 text-cyan-300 font-bold">WASD</span>
+              <span className="text-slate-200">→ Walk to glowing</span>
+              <span className="px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-400/50 text-amber-300 font-bold">Chest</span>
+              <span className="text-slate-200">→ Press</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-amber-400/50 text-amber-300 font-bold">E</span>
+              <span className="text-slate-200">to open chest & acquire</span>
+              <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/50 text-emerald-300 font-bold">Command Gems</span>
+              <span className="text-slate-200">→ Defeat enemies using</span>
+              <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/50 text-emerald-300 font-bold">Gem Hotbar</span>
+              <span className="text-slate-200">/</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-amber-400/50 text-amber-300 font-bold">CLI Terminal (~)</span>
+              {questComplete && (
+                <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/60 text-emerald-300 font-black animate-pulse">✔ QUEST COMPLETE!</span>
+              )}
+            </div>
+            <button
+              onClick={() => store.dismissObjectiveBanner()}
+              className="text-slate-400 hover:text-cyan-300 font-bold text-xs px-1.5 py-0.5 rounded hover:bg-slate-800 transition-colors shrink-0"
+              title="Dismiss objective banner"
+            >
+              ✕
+            </button>
           </div>
-        </div>
+        )}
 
         {/* HUD Control Legends Overlay - interactive */}
         <div className="absolute top-16 left-4 flex flex-col gap-1 p-2.5 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-xl text-[11px] font-mono text-slate-300 z-10 shadow-lg">
@@ -599,8 +638,8 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
             {chests
               .filter((c) => !c.looted)
               .map((c) => {
-                const t = getTileScreenPos(c.gx, c.gy, canvasRef.current)
-                const off = offscreenEdge(t, t.mapWidth, t.mapHeight)
+                const t = getTileScreenPos(c.gx, c.gy)
+                const off = offscreenEdge(t, cameraRef.current, canvasRef.current?.width, canvasRef.current?.height)
                 if (!off) return null
                 return (
                   <div
@@ -615,8 +654,8 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
             {enemies
               .filter((e) => e.hp > 0)
               .map((e) => {
-                const t = getTileScreenPos(e.gx, e.gy, canvasRef.current)
-                const off = offscreenEdge(t, t.mapWidth, t.mapHeight)
+                const t = getTileScreenPos(e.gx, e.gy)
+                const off = offscreenEdge(t, cameraRef.current, canvasRef.current?.width, canvasRef.current?.height)
                 if (!off) return null
                 return (
                   <div
@@ -652,16 +691,16 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         </div>
 
         {/* Command Gem Hotbar Overlay */}
-        <div className="absolute bottom-4 right-4 flex flex-col items-end gap-1">
-          <span className="text-[10px] font-mono text-amber-400 uppercase tracking-widest bg-slate-900/80 px-2 py-0.5 rounded border border-amber-500/20">
+        <div className="absolute bottom-4 left-36 right-36 flex flex-col items-center justify-center gap-1 pointer-events-auto z-20">
+          <span className="text-[10px] font-mono text-amber-400 uppercase tracking-widest bg-slate-900/80 px-2 py-0.5 rounded border border-amber-500/20 shadow-md">
             Command Gem Hotbar
           </span>
-          <div className="flex gap-2 p-2 bg-slate-900/90 border border-slate-800 rounded-xl shadow-xl">
+          <div className="flex gap-2 p-2 bg-slate-900/90 border border-slate-800 rounded-xl shadow-xl overflow-x-auto max-w-full">
             {inventoryGems.map((gem, idx) => (
               <button
                 key={idx}
                 onClick={() => castGem(gem)}
-                className="group relative flex flex-col items-center justify-center w-12 h-12 bg-gradient-to-br from-slate-800 to-slate-900 border border-cyan-500/40 rounded-lg hover:border-cyan-400 hover:scale-105 active:scale-95 transition-all shadow-md"
+                className="group relative flex flex-col items-center justify-center min-w-[48px] w-12 h-12 bg-gradient-to-br from-slate-800 to-slate-900 border border-cyan-500/40 rounded-lg hover:border-cyan-400 hover:scale-105 active:scale-95 transition-all shadow-md shrink-0"
               >
                 <span className="text-xs font-black font-mono text-cyan-300 group-hover:text-cyan-100">{gem}</span>
                 <span className="text-[9px] text-slate-400">SPELL</span>

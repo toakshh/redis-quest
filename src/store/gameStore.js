@@ -715,6 +715,8 @@ const initialState = () => ({
   speedrunTimer: false,
   terminalAutocomplete: true,
   autoSaveInterval: 30000,
+  // Objective banner visibility state
+  objectiveBannerDismissed: false,
   // Skill tree
   skillPoints: 0, // unspent skill points (1 per level)
   unlockedSkills: [], // skill ids
@@ -1154,6 +1156,10 @@ export const useGameStore = create((set, get) => {
     setSpeedrunTimer(speedrunTimer) { set({ speedrunTimer }) },
     setTerminalAutocomplete(terminalAutocomplete) { set({ terminalAutocomplete }) },
     setAutoSaveInterval(autoSaveInterval) { set({ autoSaveInterval }) },
+    dismissObjectiveBanner() {
+      set({ objectiveBannerDismissed: true })
+    },
+
     dismissToast(id) {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
     },

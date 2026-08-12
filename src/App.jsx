@@ -95,7 +95,7 @@ export default function App() {
       <div className="flex min-h-0 flex-1 relative overflow-hidden">
         {/* left side panel: tabbed WORLD / MEM / BOSS / AWARDS / SKILLS / COSMETICS / SETTINGS */}
         {!isFullscreen && (
-          <aside className="flex w-[200px] min-h-0 shrink-0 flex-col border-r border-edge xl:w-[240px] bg-panel/30">
+          <aside className="flex w-[180px] min-w-[150px] max-w-[240px] min-h-0 shrink flex-col border-r border-edge xl:w-[240px] bg-panel/30 overflow-y-auto">
             <nav
               className="flex flex-col shrink-0 border-b border-edge bg-panel/60"
               aria-label="Side panels"
@@ -108,15 +108,15 @@ export default function App() {
                     type="button"
                     onClick={() => setTab(id)}
                     aria-pressed={active}
-                    className={`flex items-center justify-between px-3 py-2 border-b border-edge/50 transition-colors ${
+                    className={`flex items-center justify-between px-2.5 py-2 border-b border-edge/50 transition-colors whitespace-nowrap overflow-hidden ${
                       active
                         ? 'bg-cyan/10 text-cyan font-bold border-l-2 border-l-cyan'
                         : 'text-slate-400 hover:bg-panel2 hover:text-slate-200 border-l-2 border-l-transparent'
                     }`}
                   >
-                    <div className="flex items-center gap-2 overflow-hidden">
+                    <div className="flex items-center gap-2 overflow-hidden min-w-0">
                       <span className="text-base shrink-0">{getTabIcon(id)}</span>
-                      <span className="text-xs tracking-[0.1em] truncate">{label}</span>
+                      <span className="text-xs tracking-[0.1em] truncate font-mono">{label}</span>
                     </div>
                   </button>
                 )
@@ -243,14 +243,14 @@ export default function App() {
 
       {/* Floating Action Buttons Bottom Right */}
       {!isFullscreen && (
-        <div className="fixed bottom-4 right-4 z-30 flex items-center gap-2">
+        <div className="fixed bottom-4 right-4 z-30 flex items-center gap-2 pointer-events-none">
           {/* Terminal Drawer Toggle Button */}
           <button
             type="button"
             onClick={() => setTerminalDrawerOpen(!terminalDrawerOpen)}
             aria-expanded={terminalDrawerOpen}
             aria-label={terminalDrawerOpen ? 'Hide Terminal Drawer' : 'Show Terminal Drawer'}
-            className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-xl transition-all duration-300 ${
+            className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-xl transition-all duration-300 pointer-events-auto ${
               terminalDrawerOpen
                 ? 'border-amber bg-amber/20 text-amber shadow-[0_0_16px_rgba(251,191,36,0.4)]'
                 : 'border-edge bg-panel/80 text-dim hover:border-amber/50 hover:text-amber'
@@ -265,7 +265,7 @@ export default function App() {
             onClick={() => setRexTab(!rexTab)}
             aria-expanded={rexTab}
             aria-label={rexTab ? 'Hide REX companion' : 'Show REX companion'}
-            className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-xl transition-all duration-300 ${
+            className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-xl transition-all duration-300 pointer-events-auto ${
               rexTab
                 ? 'border-cyan bg-cyan/20 text-cyan shadow-[0_0_16px_rgba(34,211,238,0.4)]'
                 : 'border-edge bg-panel/80 text-dim hover:border-cyan/50 hover:text-cyan'
