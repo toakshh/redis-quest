@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState } from 'react'
 import { soundEngine } from '../audio/SoundEngine.js'
 import VictoryModal from './VictoryModal.jsx'
 import ChestCommandModal from './ChestCommandModal.jsx'
+import GameOverModal from './GameOverModal.jsx'
+import PauseModal from './PauseModal.jsx'
 import { GameLoop } from '../game/GameLoop.js'
 import { World } from '../game/World.js'
-import { drawIsoTile, drawIsoBlock, gridToIso, isoToGrid, TILE_WIDTH, TILE_HEIGHT, drawApiGate, drawCacheCorruptionAura, drawShieldExpiryOverlay, drawQueueConveyor, drawEnergyBall } from '../game/IsometricRenderer.js'
+import { drawIsoTile, drawIsoBlock, gridToIso, isoToGrid, TILE_WIDTH, TILE_HEIGHT, drawApiGate, drawCacheCorruptionAura, drawShieldExpiryOverlay, drawQueueConveyor, drawApiRequestProjectile, drawEnergyBall } from '../game/IsometricRenderer.js'
 import SystemHealth from './SystemHealth.jsx'
 import { IsometricEngineControls } from '../game/IsometricEngine.js'
 import { Camera } from '../game/Camera.js'
@@ -224,8 +226,10 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const [enemyImmunityOverlay, setEnemyImmunityOverlay] = useState(null)
   const [playerHp, setPlayerHp] = useState(100)
   const [hitFlash, setHitFlash] = useState(false)
+  const [isManualPaused, setIsManualPaused] = useState(false)
+  const [showGameOver, setShowGameOver] = useState(false)
 
-  // Energy Ball projectiles & attack timer refs
+  // Energy Ball / API Request projectiles & attack timer refs
   const projectilesRef = useRef([])
   const lastAttackTimeRef = useRef(0)
 
@@ -234,6 +238,29 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   // Keep track of player position in ref for animation frame
   const playerRef = useRef({ gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' })
 
+  // Calculated active pause state: game pauses on popup, terminal open, ESC, victory or game over
+  const isTerminalActive = Boolean(isTerminalDrawerOpen || terminalOpen)
+  const isGamePaused = Boolean(isManualPaused || openedChestGem || isTerminalActive || showGameOver || showVictory)
+  const isGamePausedRef = useRef(isGamePaused)
+  isGamePausedRef.current = isGamePaused
+
+  // ESC key toggle pause listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        const activeEl = document.activeElement
+        const isInput = activeEl && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName)
+        if (!isInput) {
+          e.preventDefault()
+          soundEngine.playSFX('click')
+          setIsManualPaused((prev) => !prev)
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   // Switch region
   const handleRegionSelect = (regionId) => {
     setSelectedRegion(regionId)
@@ -241,6 +268,8 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     setChests(map.chests)
     setEnemies(map.enemies)
     setEnemyImmunityOverlay(null)
+    setIsManualPaused(false)
+    setShowGameOver(false)
     playerRef.current = { gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' }
     setPlayerGridPos({ gx: 2, gy: 2 })
     const initialIso = gridToIso(2, 2)
@@ -250,7 +279,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
 
   // Keyboard & QWERTY Physical controls using IsometricEngineControls
   useEffect(() => {
-    if (openedChestGem) return
+    if (openedChestGem || isGamePaused) return
     const controls = new IsometricEngineControls({
       onMove: (dx, dy) => movePlayer(dx, dy),
       onInteract: () => interactCurrentTile(),
@@ -266,7 +295,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
 
     controls.attach(window)
     return () => controls.detach(window)
-  }, [terminalOpen, selectedRegion, chests, enemies, openedChestGem])
+  }, [terminalOpen, selectedRegion, chests, enemies, openedChestGem, isGamePaused])
 
   const handleProceed = () => {
     const regionIds = Object.keys(REGION_MAPS)
@@ -519,8 +548,54 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       const map = REGION_MAPS[selectedRegion]
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
+      // Check pause state
+      if (isGamePausedRef.current) {
+        // Draw static scene without updating timers, lerp, or physics
+        for (let gx = 0; gx < map.width; gx++) {
+          for (let gy = 0; gy < map.height; gy++) {
+            const iso = gridToIso(gx, gy)
+            const isChecker = (gx + gy) % 2 === 0
+            const fillColor = isChecker ? map.tileColor1 : map.tileColor2
+            drawIsoTile(ctx, iso.x, iso.y, TILE_WIDTH, TILE_HEIGHT, fillColor, map.borderColor)
+          }
+        }
+        const gateIso = gridToIso(8, 3)
+        drawApiGate(ctx, gateIso.x, gateIso.y, worldStateResolver.getApiGateState(), time)
+        const queueIso = gridToIso(5, 12)
+        drawQueueConveyor(ctx, queueIso.x, queueIso.y, worldStateResolver.getQueue('queue:jobs'), worldStateResolver.workerState, time)
+
+        chests.forEach((chest) => {
+          const iso = gridToIso(chest.gx, chest.gy)
+          if (chest.looted) {
+            drawIsoBlock(ctx, iso.x, iso.y, 24, 12, 10, '#64748b', '#475569', '#334155')
+          } else {
+            drawIsoBlock(ctx, iso.x, iso.y, 24, 12, 14, '#f59e0b', '#d97706', '#b45309')
+          }
+        })
+
+        enemies.forEach((enemy) => {
+          if (enemy.hp <= 0) return
+          const iso = gridToIso(enemy.gx, enemy.gy)
+          drawIsoBlock(ctx, iso.x, iso.y, 28, 14, 22, '#ef4444', '#dc2626', '#b91c1c')
+        })
+
+        const pIso = gridToIso(p.gx, p.gy)
+        drawIsoBlock(ctx, pIso.x, pIso.y, 30, 15, 26, '#06b6d4', '#0891b2', '#0e7490')
+
+        // Static pause overlay banner
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.45)'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.fillStyle = '#fbbf24'
+        ctx.font = 'bold 14px monospace'
+        ctx.textAlign = 'center'
+        ctx.fillText('⏸️ GAME PAUSED — SUSPENDED', canvas.width / 2, canvas.height / 2)
+
+        cameraRef.current.restoreContext(ctx)
+        animationFrameId = requestAnimationFrame(render)
+        return
+      }
+
       // Update player position smooth lerp
-      const p = playerRef.current
       if (p.animProgress < 1) {
         p.animProgress = Math.min(1, p.animProgress + 0.1)
         p.gx = p.gx + (p.targetGx - p.gx) * p.animProgress
@@ -689,7 +764,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       ctx.textAlign = 'center'
       ctx.fillText('HERO (REX)', pScreenX, pScreenY - 42 - bob)
 
-      // Villain Energy Ball Attack Loop (Active enemies launch energy balls toward player)
+      // Villain API Request Attack Loop (Active enemies launch API Request floods toward player)
       const activeEnemies = enemies.filter((e) => e.hp > 0)
       if (activeEnemies.length > 0 && time - lastAttackTimeRef.current > 3200) {
         lastAttackTimeRef.current = time
@@ -706,7 +781,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         })
       }
 
-      // Update & Draw Energy Ball Projectiles
+      // Update & Draw API Request Projectiles
       projectilesRef.current = projectilesRef.current.filter((proj) => {
         if (!proj.alive) return false
 
@@ -725,9 +800,9 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         proj.gx += vx
         proj.gy += vy
 
-        // Draw Energy Ball
+        // Draw API Request Projectile
         const projIso = gridToIso(proj.gx, proj.gy)
-        drawEnergyBall(ctx, projIso.x, projIso.y - 12, 10, '#c084fc', time)
+        drawApiRequestProjectile(ctx, projIso.x, projIso.y - 12, 10, '#c084fc', time)
 
         // Collision Check with Player
         const distToPlayer = Math.hypot(proj.gx - p.gx, proj.gy - p.gy)
@@ -741,18 +816,14 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
           setPlayerHp((prevHp) => {
             const nextHp = Math.max(0, prevHp - 30)
             if (nextHp === 0) {
-              // PLAYER DIED!
+              // PLAYER DIED! Trigger Game Over Modal & System Health degradation
               worldStateResolver.reduceSystemHealth(25)
               consequenceEngine.emit(CONSEQUENCE_EVENTS.PLAYER_DIED, { damage: 25 })
-              setBattleMessage('💀 OPERATOR DOWN! Hit by Villain\'s Energy Ball! Redis System Health degraded (-25%). Respawning at safe zone...')
-              // Respawn player at (2, 2)
-              playerRef.current = { gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' }
-              setPlayerGridPos({ gx: 2, gy: 2 })
-              const safeIso = gridToIso(2, 2)
-              cameraRef.current.moveTo(safeIso.x, safeIso.y)
-              return 100 // Reset player HP after respawn
+              setShowGameOver(true)
+              setBattleMessage('🚨 OPERATOR OVERLOAD! Unthrottled API Request flood crashed hero system. Redis System Health degraded (-25%).')
+              return 0
             } else {
-              setBattleMessage(`💥 CRITICAL HIT! Hit by Villain's Energy Ball! (-30 HP, ${nextHp}/100 HP remaining)`)
+              setBattleMessage(`💥 UNTHROTTLED API REQUEST HIT! Operator overloaded (-30 HP, ${nextHp}/100 HP remaining)`)
               return nextHp
             }
           })
@@ -797,6 +868,19 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              soundEngine.playSFX('click')
+              setIsManualPaused((prev) => !prev)
+            }}
+            className={`px-3 py-1 text-xs rounded font-bold border transition-all ${
+              isManualPaused
+                ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-[0_0_12px_rgba(245,158,11,0.5)]'
+                : 'bg-slate-800 text-amber-400 border-amber-500/30 hover:border-amber-400'
+            }`}
+          >
+            {isManualPaused ? '▶️ RESUME (ESC)' : '⏸️ PAUSE (ESC)'}
+          </button>
           {onToggleFullscreen && (
             <button
               onClick={() => {soundEngine.playSFX('nav'); onToggleFullscreen()}}
@@ -839,18 +923,26 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         )}
 
         {/* Top-Right Survival & Server System Health HUD */}
-        <div className="absolute top-16 right-4 flex flex-col gap-2 p-3 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl text-xs font-mono z-20 shadow-xl min-w-[220px]">
+        <div className="absolute top-16 right-4 flex flex-col gap-2 p-3 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl text-xs font-mono z-20 shadow-xl min-w-[230px]">
           {/* Operator Survival Health Bar */}
           <div className="space-y-1">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="text-red-400 font-bold flex items-center gap-1">
+              <span className={`font-bold flex items-center gap-1 ${playerHp > 70 ? 'text-emerald-400' : playerHp > 30 ? 'text-amber-400' : 'text-red-400'}`}>
                 ❤️ OPERATOR HP:
               </span>
-              <span className="text-red-300 font-bold">{playerHp} / 100 HP</span>
+              <span className={`font-bold ${playerHp > 70 ? 'text-emerald-300' : playerHp > 30 ? 'text-amber-300' : 'text-red-400 animate-pulse'}`}>
+                {playerHp} / 100 HP
+              </span>
             </div>
-            <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-red-900/60">
+            <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
               <div
-                className="h-full bg-red-500 transition-all duration-300 rounded-full"
+                className={`h-full transition-all duration-300 rounded-full ${
+                  playerHp > 70
+                    ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+                    : playerHp > 30
+                    ? 'bg-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.5)]'
+                    : 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.7)] animate-pulse'
+                }`}
                 style={{ width: `${playerHp}%` }}
               />
             </div>
@@ -1027,6 +1119,36 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
           isOpen={Boolean(openedChestGem)}
           onClose={() => setOpenedChestGem(null)}
           commandGem={openedChestGem}
+        />
+
+        {/* Pause Modal */}
+        <PauseModal
+          isOpen={isManualPaused}
+          onResume={() => setIsManualPaused(false)}
+          onOpenTerminal={() => {
+            if (onToggleTerminalDrawer) {
+              onToggleTerminalDrawer()
+            } else {
+              setTerminalOpen(true)
+            }
+          }}
+          playerHp={playerHp}
+          systemHealth={worldStateResolver.getSystemHealth()}
+        />
+
+        {/* Game Over Modal */}
+        <GameOverModal
+          isOpen={showGameOver}
+          systemHealth={worldStateResolver.getSystemHealth()}
+          onRestart={() => {
+            setPlayerHp(100)
+            setShowGameOver(false)
+            playerRef.current = { gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' }
+            setPlayerGridPos({ gx: 2, gy: 2 })
+            const safeIso = gridToIso(2, 2)
+            cameraRef.current.moveTo(safeIso.x, safeIso.y)
+            setBattleMessage('⚡ OPERATOR REBOOTED! Hero re-initialized at safe zone (2, 2).')
+          }}
         />
 
         {/* Touch D-Pad Controls for mobile / touch */}

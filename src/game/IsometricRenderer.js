@@ -196,8 +196,8 @@ export function drawApiGate(ctx, x, y, state = 'corrupted', timeMs = Date.now())
   ctx.restore()
 }
 
-/** Draw villain energy ball projectile with glowing particle trail and plasma aura */
-export function drawEnergyBall(ctx, x, y, radius = 10, color = '#c084fc', timeMs = Date.now()) {
+/** Draw villain API request projectile with glowing packet trail and plasma aura */
+export function drawApiRequestProjectile(ctx, x, y, radius = 10, color = '#c084fc', timeMs = Date.now()) {
   ctx.save()
 
   const pulse = Math.sin(timeMs / 80) * 0.25 + 0.95
@@ -214,7 +214,7 @@ export function drawEnergyBall(ctx, x, y, radius = 10, color = '#c084fc', timeMs
   ctx.arc(x, y, currentRadius * 2.2, 0, Math.PI * 2)
   ctx.fill()
 
-  // Inner Plasma Sphere
+  // Inner Plasma Core
   ctx.fillStyle = '#ffffff'
   ctx.beginPath()
   ctx.arc(x, y, currentRadius * 0.6, 0, Math.PI * 2)
@@ -232,14 +232,25 @@ export function drawEnergyBall(ctx, x, y, radius = 10, color = '#c084fc', timeMs
     ctx.stroke()
   }
 
-  // Warning text above orb
+  // Warning text badge above API Request projectile
+  ctx.fillStyle = '#0f172a'
+  ctx.beginPath()
+  ctx.rect(x - 36, y - currentRadius - 16, 72, 12)
+  ctx.fill()
+  ctx.strokeStyle = '#f43f5e'
+  ctx.lineWidth = 1
+  ctx.stroke()
+
   ctx.fillStyle = '#fca5a5'
   ctx.font = 'bold 8px monospace'
   ctx.textAlign = 'center'
-  ctx.fillText('⚡ ENERGY BALL', x, y - currentRadius - 6)
+  ctx.fillText('⚡ API REQ FLOOD', x, y - currentRadius - 7)
 
   ctx.restore()
 }
+
+// Backwards compatibility alias
+export const drawEnergyBall = drawApiRequestProjectile
 
 /** Draw visual corruption aura over affected area/NPC; dissolves upon DEL or SET cache invalidation */
 export function drawCacheCorruptionAura(ctx, x, y, radius = 30, timeMs = Date.now()) {
