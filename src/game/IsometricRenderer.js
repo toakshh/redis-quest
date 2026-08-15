@@ -196,6 +196,51 @@ export function drawApiGate(ctx, x, y, state = 'corrupted', timeMs = Date.now())
   ctx.restore()
 }
 
+/** Draw villain energy ball projectile with glowing particle trail and plasma aura */
+export function drawEnergyBall(ctx, x, y, radius = 10, color = '#c084fc', timeMs = Date.now()) {
+  ctx.save()
+
+  const pulse = Math.sin(timeMs / 80) * 0.25 + 0.95
+  const currentRadius = radius * pulse
+
+  // Outer Glowing Glow Aura
+  const gradient = ctx.createRadialGradient(x, y, 2, x, y, currentRadius * 2.2)
+  gradient.addColorStop(0, color)
+  gradient.addColorStop(0.5, 'rgba(239, 68, 68, 0.6)')
+  gradient.addColorStop(1, 'rgba(168, 85, 247, 0)')
+
+  ctx.fillStyle = gradient
+  ctx.beginPath()
+  ctx.arc(x, y, currentRadius * 2.2, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Inner Plasma Sphere
+  ctx.fillStyle = '#ffffff'
+  ctx.beginPath()
+  ctx.arc(x, y, currentRadius * 0.6, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Orbiting Energy Arcs
+  ctx.strokeStyle = '#f43f5e'
+  ctx.lineWidth = 1.5
+  for (let i = 0; i < 3; i++) {
+    const angle = (timeMs / 120) + (i * (Math.PI * 2 / 3))
+    const sparkX = x + Math.cos(angle) * (currentRadius * 1.3)
+    const sparkY = y + Math.sin(angle) * (currentRadius * 1.3)
+    ctx.beginPath()
+    ctx.arc(sparkX, sparkY, 2, 0, Math.PI * 2)
+    ctx.stroke()
+  }
+
+  // Warning text above orb
+  ctx.fillStyle = '#fca5a5'
+  ctx.font = 'bold 8px monospace'
+  ctx.textAlign = 'center'
+  ctx.fillText('⚡ ENERGY BALL', x, y - currentRadius - 6)
+
+  ctx.restore()
+}
+
 /** Draw visual corruption aura over affected area/NPC; dissolves upon DEL or SET cache invalidation */
 export function drawCacheCorruptionAura(ctx, x, y, radius = 30, timeMs = Date.now()) {
   ctx.save()

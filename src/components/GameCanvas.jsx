@@ -4,7 +4,8 @@ import VictoryModal from './VictoryModal.jsx'
 import ChestCommandModal from './ChestCommandModal.jsx'
 import { GameLoop } from '../game/GameLoop.js'
 import { World } from '../game/World.js'
-import { drawIsoTile, drawIsoBlock, gridToIso, isoToGrid, TILE_WIDTH, TILE_HEIGHT, drawApiGate, drawCacheCorruptionAura, drawShieldExpiryOverlay, drawQueueConveyor } from '../game/IsometricRenderer.js'
+import { drawIsoTile, drawIsoBlock, gridToIso, isoToGrid, TILE_WIDTH, TILE_HEIGHT, drawApiGate, drawCacheCorruptionAura, drawShieldExpiryOverlay, drawQueueConveyor, drawEnergyBall } from '../game/IsometricRenderer.js'
+import SystemHealth from './SystemHealth.jsx'
 import { IsometricEngineControls } from '../game/IsometricEngine.js'
 import { Camera } from '../game/Camera.js'
 import { useGameStore } from '../store/gameStore.js'
@@ -221,6 +222,12 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const [showVictory, setShowVictory] = useState(false)
   const [openedChestGem, setOpenedChestGem] = useState(null)
   const [enemyImmunityOverlay, setEnemyImmunityOverlay] = useState(null)
+  const [playerHp, setPlayerHp] = useState(100)
+  const [hitFlash, setHitFlash] = useState(false)
+
+  // Energy Ball projectiles & attack timer refs
+  const projectilesRef = useRef([])
+  const lastAttackTimeRef = useRef(0)
 
   // Camera instance ref
   const cameraRef = useRef(new Camera({ viewportWidth: 1200, viewportHeight: 700, smoothFactor: 0.15 }))
@@ -682,6 +689,79 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       ctx.textAlign = 'center'
       ctx.fillText('HERO (REX)', pScreenX, pScreenY - 42 - bob)
 
+      // Villain Energy Ball Attack Loop (Active enemies launch energy balls toward player)
+      const activeEnemies = enemies.filter((e) => e.hp > 0)
+      if (activeEnemies.length > 0 && time - lastAttackTimeRef.current > 3200) {
+        lastAttackTimeRef.current = time
+        activeEnemies.forEach((enemy) => {
+          projectilesRef.current.push({
+            id: `proj_${Date.now()}_${Math.random()}`,
+            gx: enemy.gx,
+            gy: enemy.gy,
+            targetGx: p.gx,
+            targetGy: p.gy,
+            speed: 3.5,
+            alive: true,
+          })
+        })
+      }
+
+      // Update & Draw Energy Ball Projectiles
+      projectilesRef.current = projectilesRef.current.filter((proj) => {
+        if (!proj.alive) return false
+
+        const dx = proj.targetGx - proj.gx
+        const dy = proj.targetGy - proj.gy
+        const distToTarget = Math.hypot(dx, dy)
+
+        if (distToTarget < 0.15) {
+          proj.alive = false
+          return false
+        }
+
+        // Advance projectile along vector
+        const vx = (dx / distToTarget) * proj.speed * dt
+        const vy = (dy / distToTarget) * proj.speed * dt
+        proj.gx += vx
+        proj.gy += vy
+
+        // Draw Energy Ball
+        const projIso = gridToIso(proj.gx, proj.gy)
+        drawEnergyBall(ctx, projIso.x, projIso.y - 12, 10, '#c084fc', time)
+
+        // Collision Check with Player
+        const distToPlayer = Math.hypot(proj.gx - p.gx, proj.gy - p.gy)
+        if (distToPlayer < 0.75) {
+          // HIT!
+          proj.alive = false
+          soundEngine.playSFX('defeat')
+          setHitFlash(true)
+          setTimeout(() => setHitFlash(false), 300)
+
+          setPlayerHp((prevHp) => {
+            const nextHp = Math.max(0, prevHp - 30)
+            if (nextHp === 0) {
+              // PLAYER DIED!
+              worldStateResolver.reduceSystemHealth(25)
+              consequenceEngine.emit(CONSEQUENCE_EVENTS.PLAYER_DIED, { damage: 25 })
+              setBattleMessage('💀 OPERATOR DOWN! Hit by Villain\'s Energy Ball! Redis System Health degraded (-25%). Respawning at safe zone...')
+              // Respawn player at (2, 2)
+              playerRef.current = { gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' }
+              setPlayerGridPos({ gx: 2, gy: 2 })
+              const safeIso = gridToIso(2, 2)
+              cameraRef.current.moveTo(safeIso.x, safeIso.y)
+              return 100 // Reset player HP after respawn
+            } else {
+              setBattleMessage(`💥 CRITICAL HIT! Hit by Villain's Energy Ball! (-30 HP, ${nextHp}/100 HP remaining)`)
+              return nextHp
+            }
+          })
+          return false
+        }
+
+        return true
+      })
+
       // Restore camera context transform
       cameraRef.current.restoreContext(ctx)
 
@@ -752,6 +832,35 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       {/* Main Canvas Viewport - Expanded Full Width */}
       <div ref={containerRef} className="relative flex-1 bg-slate-950 flex items-center justify-center overflow-hidden w-full h-full">
         <canvas ref={canvasRef} className="w-full h-full block" />
+
+        {/* Damage Flash Red Screen Overlay */}
+        {hitFlash && (
+          <div className="absolute inset-0 bg-red-600/30 border-4 border-red-500 pointer-events-none z-50 animate-pulse" />
+        )}
+
+        {/* Top-Right Survival & Server System Health HUD */}
+        <div className="absolute top-16 right-4 flex flex-col gap-2 p-3 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl text-xs font-mono z-20 shadow-xl min-w-[220px]">
+          {/* Operator Survival Health Bar */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-red-400 font-bold flex items-center gap-1">
+                ❤️ OPERATOR HP:
+              </span>
+              <span className="text-red-300 font-bold">{playerHp} / 100 HP</span>
+            </div>
+            <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-red-900/60">
+              <div
+                className="h-full bg-red-500 transition-all duration-300 rounded-full"
+                style={{ width: `${playerHp}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Redis Server System Health Bar */}
+          <div className="border-t border-slate-800 pt-2">
+            <SystemHealth health={worldStateResolver.getSystemHealth()} label="REDIS SERVER HEALTH" />
+          </div>
+        </div>
 
         {/* Quest Objective Banner - prominent top guidance */}
         {!store.objectiveBannerDismissed && (

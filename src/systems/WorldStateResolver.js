@@ -5,6 +5,9 @@ import { consequenceEngine, CONSEQUENCE_EVENTS } from './ConsequenceEngine.js'
 
 export class WorldStateResolver {
   constructor() {
+    // Redis System Health (0-100%)
+    this.systemHealth = 100
+
     // API Gate state: 'open' | 'locked' | 'corrupted'
     this.apiGateState = 'corrupted'
 
@@ -54,7 +57,29 @@ export class WorldStateResolver {
       case CONSEQUENCE_EVENTS.QUEUE_UPDATED:
         this.updateQueueState(payload)
         break
+
+      case CONSEQUENCE_EVENTS.SYSTEM_HEALTH_DEGRADED:
+      case CONSEQUENCE_EVENTS.PLAYER_DIED:
+        if (payload.damage) {
+          this.reduceSystemHealth(payload.damage)
+        } else if (type === CONSEQUENCE_EVENTS.PLAYER_DIED) {
+          this.reduceSystemHealth(25)
+        }
+        break
     }
+  }
+
+  // System Health
+  getSystemHealth() {
+    return this.systemHealth
+  }
+
+  reduceSystemHealth(amount = 25) {
+    this.systemHealth = Math.max(0, this.systemHealth - amount)
+  }
+
+  restoreSystemHealth(amount = 100) {
+    this.systemHealth = Math.min(100, this.systemHealth + amount)
   }
 
   // API Gate
