@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { entryMemoryBytes, formatBytes } from '../engine/datatypes/memory.js'
 
 // Visual metadata per data type — mirrors the cyberpunk palette in index.css.
@@ -38,11 +38,7 @@ function entrySummary(entry) {
   }
 }
 
-// Snapshot of the active database: key metadata + per-key memory. Built on
-// engine 'change'/'expired' events only; the cheaper TTL check (which keys are
-// still live vs lapsed) happens at render time against a ticking `now`, so a
-// logically-expired key disappears from the panel within a tick without
-// recomputing memory bytes on every frame.
+// Snapshot of the active database: key metadata + per-key memory.
 function buildSnapshot(engine) {
   const keys = []
   for (const [name, entry] of engine.store) {
@@ -75,19 +71,51 @@ export default function MemoryInspector({ engine, className = '' }) {
   const [snapshot, setSnapshot] = useState(() => buildSnapshot(engine))
   const [now, setNow] = useState(() => engine.now())
   const [sort, setSort] = useState('mem')
+  const [mutatedMap, setMutatedMap] = useState({}) // keyName -> timestamp
 
-  // Rebuild the snapshot whenever the engine mutates. The TTL tick is kept
-  // separate (a lightweight `now` state) so countdowns move between events
-  // without recomputing memory bytes every frame.
+  const prevSnapshotRef = useRef(snapshot)
+
+  // Rebuild snapshot & track mutation timestamps for flash animations
   useEffect(() => {
-    const refresh = () => setSnapshot(buildSnapshot(engine))
+    const refresh = () => {
+      const nextSnapshot = buildSnapshot(engine)
+      const currentTime = engine.now()
+      const prevMap = new Map(prevSnapshotRef.current.map((k) => [k.name, k]))
+      const nextMutations = { ...mutatedMap }
+      let hasNewMutation = false
+
+      for (const key of nextSnapshot) {
+        const prev = prevMap.get(key.name)
+        if (!prev || prev.bytes !== key.bytes || prev.summary !== key.summary || prev.type !== key.type) {
+          nextMutations[key.name] = currentTime
+          hasNewMutation = true
+        }
+      }
+
+      prevSnapshotRef.current = nextSnapshot
+      setSnapshot(nextSnapshot)
+      if (hasNewMutation) {
+        setMutatedMap(nextMutations)
+      }
+    }
+
+    const handleCommand = ({ args }) => {
+      if (args && args.length > 1) {
+        const keyName = String(args[1])
+        setMutatedMap((prev) => ({ ...prev, [keyName]: engine.now() }))
+      }
+    }
+
     engine.on('change', refresh)
     engine.on('expired', refresh)
+    engine.on('command', handleCommand)
+
     return () => {
       engine.off('change', refresh)
       engine.off('expired', refresh)
+      engine.off('command', handleCommand)
     }
-  }, [engine])
+  }, [engine, mutatedMap])
 
   useEffect(() => {
     const timer = setInterval(() => setNow(engine.now()), 250)
@@ -209,8 +237,19 @@ export default function MemoryInspector({ engine, className = '' }) {
             const meta = TYPE_META[key.type] ?? TYPE_META.string
             const ttlMs = key.expiresAt === null ? null : key.expiresAt - now
             const share = liveBytes > 0 ? (key.bytes / liveBytes) * 100 : 0
+            const mutatedTime = mutatedMap[key.name]
+            const isRecentlyMutated = mutatedTime && now - mutatedTime < 1500
+
             return (
-              <li key={key.name} className="group px-2 py-1.5 transition-colors hover:bg-panel2">
+              <li
+                key={key.name}
+                data-modified={isRecentlyMutated ? 'true' : 'false'}
+                className={`group px-2 py-1.5 transition-all duration-300 ${
+                  isRecentlyMutated
+                    ? 'bg-cyan-500/20 ring-1 ring-cyan-400/80 border-cyan-500/50 shadow-glow animate-pulse font-semibold'
+                    : 'hover:bg-panel2'
+                }`}
+              >
                 <div className="flex items-center gap-2">
                   {/* type badge */}
                   <span
@@ -221,10 +260,15 @@ export default function MemoryInspector({ engine, className = '' }) {
                   </span>
                   {/* key name */}
                   <span
-                    className="min-w-0 flex-1 truncate text-[12px] text-fg"
+                    className="min-w-0 flex-1 truncate text-[12px] text-fg flex items-center gap-1"
                     title={key.name}
                   >
                     {truncate(key.name)}
+                    {isRecentlyMutated && (
+                      <span className="px-1 text-[8px] bg-amber-500/30 text-amber-300 rounded border border-amber-500/40 uppercase tracking-widest font-mono">
+                        ⚡ MUTATED
+                      </span>
+                    )}
                   </span>
                   {/* cardinality */}
                   <span className="hidden shrink-0 text-[10px] text-dim sm:inline">
