@@ -35,3 +35,8 @@ When updating this file, preserve this bar for all agents and keep entries conci
 
 ## Incident HUD & Visual Indicators
 - Incident HUD in `src/components/IncidentPanel.jsx` with `PressureMeter.jsx` and `SystemHealth.jsx`.
+
+## World Reactions & Consequence System
+- Consequence events handled via `src/systems/consequences/ConsequenceEngine.js`.
+- Dynamic visual world states (API Gate, Cache Corruption, Shield Expiry, Queue Conveyor) resolved via `src/systems/consequences/WorldStateResolver.js`.
+- Rendered in `src/components/GameCanvas.jsx` using `src/game/IsometricRenderer.js`.

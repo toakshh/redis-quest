@@ -4,10 +4,12 @@ import VictoryModal from './VictoryModal.jsx'
 import ChestCommandModal from './ChestCommandModal.jsx'
 import { GameLoop } from '../game/GameLoop.js'
 import { World } from '../game/World.js'
-import { drawIsoTile, drawIsoBlock, gridToIso, isoToGrid, TILE_WIDTH, TILE_HEIGHT } from '../game/IsometricRenderer.js'
+import { drawIsoTile, drawIsoBlock, gridToIso, isoToGrid, TILE_WIDTH, TILE_HEIGHT, drawApiGate, drawCacheCorruptionAura, drawShieldExpiryOverlay, drawQueueConveyor } from '../game/IsometricRenderer.js'
 import { IsometricEngineControls } from '../game/IsometricEngine.js'
 import { Camera } from '../game/Camera.js'
 import { useGameStore } from '../store/gameStore.js'
+import { consequenceEngine, CONSEQUENCE_EVENTS } from '../systems/ConsequenceEngine.js'
+import { worldStateResolver } from '../systems/WorldStateResolver.js'
 
 // Compute where an offscreen objective marker should sit on the viewport edge.
 // Uses camera coordinate translation matching the render loop.
@@ -328,6 +330,8 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     const p = playerRef.current
     const activeEnemy = enemies.find((e) => e.hp > 0 && Math.abs(e.gx - p.gx) <= 4 && Math.abs(e.gy - p.gy) <= 4)
 
+    consequenceEngine.processCommand(gem, [activeEnemy?.shieldKey || ''])
+
     if (activeEnemy) {
       if (gem === activeEnemy.counterGem || gem === 'DEL') {
         const damage = 35
@@ -343,6 +347,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         if (newHp === 0) {
           setBattleMessage(`💥 Countered ${activeEnemy.name} with ${gem}! Enemy Defeated! (+50 XP)`)
           store.addXp(50)
+          consequenceEngine.triggerIncidentResolved(activeEnemy.id, { enemyName: activeEnemy.name })
         } else {
           setBattleMessage(`⚡ Cast ${gem}! Hit ${activeEnemy.name} for ${damage} dmg! (${newHp}/${activeEnemy.maxHp} HP)`)
         }
@@ -392,14 +397,18 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     const cmd = terminalInput.trim()
     setTerminalLogs((prev) => [...prev, `> ${cmd}`])
 
+    const parts = cmd.split(' ')
+    const verb = parts[0].toUpperCase()
+    const args = parts.slice(1)
+    
+    consequenceEngine.processCommand(verb, args)
+
     if (engine) {
       const res = store.runCommand(cmd)
       const output = res.type === 'error' ? `ERR: ${res.value}` : JSON.stringify(res.value)
       setTerminalLogs((prev) => [...prev, output])
 
       // World live react (e.g. DEL enemy shield or SET item)
-      const parts = cmd.split(' ')
-      const verb = parts[0].toUpperCase()
       const arg1 = parts[1]
 
       const p = playerRef.current
@@ -487,6 +496,9 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       cameraRef.current.follow(playerWorldIso)
       cameraRef.current.update(dt)
 
+      // Update world state resolver timer / animation states
+      worldStateResolver.update(dt)
+
       // Apply camera view matrix transform
       cameraRef.current.applyToContext(ctx)
 
@@ -503,6 +515,14 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
           drawIsoTile(ctx, screenX, screenY, TILE_WIDTH, TILE_HEIGHT, fillColor, map.borderColor)
         }
       }
+
+      // Draw dynamic API Gate at (12, 2)
+      const gateIso = gridToIso(12, 2)
+      drawApiGate(ctx, gateIso.x, gateIso.y, worldStateResolver.getApiGateState(), time)
+
+      // Draw Queue Conveyor Belt at (4, 16)
+      const queueIso = gridToIso(4, 16)
+      drawQueueConveyor(ctx, queueIso.x, queueIso.y, worldStateResolver.getQueue('queue:jobs'), worldStateResolver.workerState, time)
 
       // Draw chests
       chests.forEach((chest) => {
@@ -556,6 +576,17 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         const iso = gridToIso(enemy.gx, enemy.gy)
         const screenX = iso.x
         const screenY = iso.y
+
+        // Cache Corruption visual reaction
+        if (worldStateResolver.isCacheCorrupted(enemy.id) || (enemy.id === 'mv_e1' && worldStateResolver.hasAnyCacheCorruption())) {
+          drawCacheCorruptionAura(ctx, screenX, screenY, 32, time)
+        }
+
+        // Shield Expiry visual reaction
+        const shieldExpiry = worldStateResolver.getShieldExpiry(enemy.shieldKey) || (enemy.shieldKey === 'bomb:timer' ? { remaining: 5 } : null)
+        if (shieldExpiry) {
+          drawShieldExpiryOverlay(ctx, screenX, screenY - 10, 34, shieldExpiry.remaining, time)
+        }
 
         // Red monster block
         drawIsoBlock(ctx, screenX, screenY, 28, 14, 22, '#ef4444', '#dc2626', '#b91c1c')
