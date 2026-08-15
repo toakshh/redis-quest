@@ -24,3 +24,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
 ## Inventory & Chest System
 - Inventory modal in `src/components/InventoryModal.jsx` (toggled via `I` hotkey or HUD button).
 - Chest Command educational overlay modal in `src/components/ChestCommandModal.jsx` with data in `src/data/chestCommands.js`.
+
+## Incident Engine & Evaluator
+- Located in `src/systems/incidents/`.
+- Manages incident lifecycle (`IncidentEngine.js`), objective predicates on `MockRedisEngine` (`IncidentEvaluator.js`), and definition registration (`IncidentRegistry.js`).
