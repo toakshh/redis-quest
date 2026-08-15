@@ -20,3 +20,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
 ## Inventory & Chest System
 - Inventory modal in `src/components/InventoryModal.jsx` (toggled via `I` hotkey or HUD button).
 - Chest Command educational overlay modal in `src/components/ChestCommandModal.jsx` with data in `src/data/chestCommands.js`.
+
+## Hint Engine System
+- Located in `src/systems/hints/HintEngine.js`.
+- Provides 3-tier progressive hints (Observation, Concept, Command Shape), score penalty tracking, and REX dialogue triggers (`onSymptom`, `onCommandResult`, `getHint`).
