@@ -546,6 +546,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       lastTime = time
 
       const map = REGION_MAPS[selectedRegion]
+      const p = playerRef.current
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       // Check pause state
