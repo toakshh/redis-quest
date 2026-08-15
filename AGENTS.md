@@ -20,3 +20,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
 ## Inventory & Chest System
 - Inventory modal in `src/components/InventoryModal.jsx` (toggled via `I` hotkey or HUD button).
 - Chest Command educational overlay modal in `src/components/ChestCommandModal.jsx` with data in `src/data/chestCommands.js`.
+
+## Scoring & Progression Systems
+- Incident performance scoring in `src/systems/scoring/ScoreEngine.js`.
+- Per-command mastery tracking in `src/systems/progression/MasteryEngine.js`.
