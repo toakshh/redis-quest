@@ -46,8 +46,57 @@ export function formatReply(reply) {
   }
 }
 
-// Colored renderer for the scrollback. Mirrors formatReply's structure but
-// colors each reply kind for the cyberpunk theme.
+// Rich Error Renderer displaying category badges & diagnostic hints for incident response.
+export function ErrorReplyView({ message }) {
+  const msg = String(message ?? '')
+  const msgUpper = msg.toUpperCase()
+
+  let category = 'ERROR'
+  let badgeColor = 'bg-red-500/25 text-red-300 border-red-500/40'
+  let hint = null
+
+  if (msgUpper.includes('WRONGTYPE')) {
+    category = 'WRONGTYPE'
+    badgeColor = 'bg-rose-500/30 text-rose-300 border-rose-500/60 font-bold'
+    hint = 'The operation is not supported for this key\'s data type. Use TYPE <key> to inspect, or DEL <key> before re-creating.'
+  } else if (
+    msgUpper.includes('SYNTAX') ||
+    msgUpper.includes('WRONG NUMBER OF ARGUMENTS') ||
+    msgUpper.includes('INVALID INT') ||
+    msgUpper.includes('INVALID FLOAT')
+  ) {
+    category = 'SYNTAX ERROR'
+    badgeColor = 'bg-amber-500/30 text-amber-300 border-amber-500/60 font-bold'
+    hint = 'Command arguments or flags are invalid. Refer to inline syntax hints or use HELP <command>.'
+  } else if (
+    msgUpper.includes('NO SUCH KEY') ||
+    msgUpper.includes('KEY NOT FOUND') ||
+    msgUpper.includes('KEY MISSING')
+  ) {
+    category = 'MISSING KEY'
+    badgeColor = 'bg-purple-500/30 text-purple-300 border-purple-500/60 font-bold'
+    hint = 'Target key does not exist. Use KEYS * or EXISTS <key> to inspect active keys in the database.'
+  }
+
+  return (
+    <div className="my-1.5 p-2 rounded-md border border-red-500/30 bg-red-950/30 text-red-300 font-mono text-xs shadow-inner" data-testid="error-formatting">
+      <div className="flex items-center gap-2 font-semibold">
+        <span className={`px-1.5 py-0.5 text-[10px] rounded border uppercase tracking-wider ${badgeColor}`}>
+          {category}
+        </span>
+        <span className="text-red-400 font-mono">(error) {msg}</span>
+      </div>
+      {hint && (
+        <div className="mt-1.5 pt-1 border-t border-red-500/20 text-[11px] text-amber-200/90 flex items-start gap-1">
+          <span className="shrink-0 text-amber-400 font-semibold">💡 Diagnostic Hint:</span>
+          <span>{hint}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Colored renderer for the scrollback.
 function ReplyView({ reply }) {
   if (!reply) return null
   switch (reply.type) {
@@ -55,7 +104,7 @@ function ReplyView({ reply }) {
     case 'status':
       return <span className="text-cyan">{reply.value}</span>
     case 'error':
-      return <span className="text-red">(error) {reply.value}</span>
+      return <ErrorReplyView message={reply.value} />
     case 'integer':
       return (
         <span>
@@ -88,8 +137,38 @@ function ReplyView({ reply }) {
   }
 }
 
-// Lightweight tokenizer for syntax highlighting. Keeps the raw text so the
-// overlay stays pixel-aligned with the transparent text input.
+// Helper to calculate inline syntax hint remaining ghost text
+export function getInlineSyntaxHint(input) {
+  if (!input) return ''
+  const trimmed = input.trimStart()
+  if (!trimmed) return ''
+  const match = trimmed.match(/^([a-zA-Z0-9_-]+)/)
+  if (!match) return ''
+  const cmdName = match[1].toUpperCase()
+  const cmdFn = registry.get(cmdName)
+  if (!cmdFn || !cmdFn.syntax) return ''
+
+  const syntax = cmdFn.syntax
+  if (syntax.toUpperCase().startsWith(trimmed.toUpperCase())) {
+    return syntax.slice(trimmed.length)
+  }
+
+  // Parameter ghost hint matching token positions
+  const inputTokens = trimmed.split(/\s+/)
+  const syntaxTokens = syntax.split(/\s+/)
+  if (inputTokens.length > 1 && inputTokens[0].toUpperCase() === syntaxTokens[0].toUpperCase()) {
+    const isEndingWithSpace = trimmed.endsWith(' ')
+    const activeIndex = inputTokens.length - (isEndingWithSpace ? 0 : 1)
+    if (activeIndex < syntaxTokens.length) {
+      const remaining = syntaxTokens.slice(activeIndex).join(' ')
+      return (isEndingWithSpace ? '' : ' ') + remaining
+    }
+  }
+
+  return ''
+}
+
+// Lightweight tokenizer for syntax highlighting.
 function highlightTokens(line) {
   const tokens = []
   let i = 0
@@ -131,9 +210,6 @@ function highlightTokens(line) {
   return tokens
 }
 
-// Renders a command line with the command keyword (if recognized), quoted
-// strings and numbers colored. Used both in the scrollback and as the
-// highlight layer behind the live input.
 function HighlightedLine({ line }) {
   const tokens = highlightTokens(line)
   let firstWord = -1
@@ -163,38 +239,39 @@ function HighlightedLine({ line }) {
 }
 
 export default function Terminal({ engine, onSubmit, onExecute, onCloseDrawer }) {
-  const [output, setOutput] = useState([]) // { line, reply }
+  const [output, setOutput] = useState([]) // { line, reply, incidentFeedback }
   const [input, setInput] = useState('')
   const [cmdHistory, setCmdHistory] = useState([]) // raw executed lines
   const [cmdIndex, setCmdIndex] = useState(-1) // -1 = editing a fresh line
   const [draft, setDraft] = useState('') // saved input while browsing history
 
   const terminalAutocomplete = useGameStore((s) => s.terminalAutocomplete !== false)
+  const activeIncident = useGameStore((s) => s.activeIncident)
 
   const endRef = useRef(null)
   const inputRef = useRef(null)
 
-  // Auto-completion suggestions matching current input prefix
-  const suggestions = (terminalAutocomplete && input.trim()) ? [
-    'SET key value',
-    'GET key',
-    'DEL key',
-    'EXPIRE key seconds',
-    'HSET key field value',
-    'HGET key field',
-    'HDEL key field',
-    'LPUSH key element',
-    'RPOP key',
-    'ZADD key score member',
-    'PUBLISH channel message',
-    'SUBSCRIBE channel',
-    'CLUSTER INFO',
-    'KEYS *',
-    'FLUSHALL',
-  ].filter(s => s.toLowerCase().startsWith(input.trim().toLowerCase())) : []
+  const inlineHint = getInlineSyntaxHint(input)
+
+  // Dynamic autocomplete matching input prefix against registry commands or fallback list
+  const availableCommands = registry.size > 0 ? [...registry.keys()] : [
+    'SET', 'GET', 'DEL', 'EXPIRE', 'HSET', 'HGET', 'HDEL', 'LPUSH', 'RPOP', 'ZADD', 'PUBLISH', 'SUBSCRIBE', 'CLUSTER', 'KEYS', 'FLUSHALL'
+  ]
+
+  const firstInputWord = input.trim().split(' ')[0].toUpperCase()
+  const suggestions = (terminalAutocomplete && input.trim().length > 0)
+    ? availableCommands
+        .filter((cmd) => cmd.startsWith(firstInputWord))
+        .slice(0, 8)
+        .map((cmd) => {
+          const cmdFn = registry.get(cmd)
+          return cmdFn?.syntax || cmd
+        })
+    : []
 
   const handleSelectSuggestion = (s) => {
-    setInput(s.split(' ')[0] + ' ')
+    const cmdOnly = s.split(' ')[0]
+    setInput(cmdOnly + ' ')
     inputRef.current?.focus()
   }
 
@@ -206,9 +283,28 @@ export default function Terminal({ engine, onSubmit, onExecute, onCloseDrawer })
     event.preventDefault()
     const line = input.trim()
     if (!line) return
+
     const reply = onSubmit ? onSubmit(line) : engine.execute(line)
-    setOutput((prev) => [...prev, { line, reply }])
-    // Skip consecutive duplicates, like redis-cli's history dedupe.
+
+    // Check for active incident impact to provide immediate feedback
+    let incidentFeedback = null
+    if (activeIncident && activeIncident.status !== 'resolved') {
+      const lineUpper = line.toUpperCase()
+      const targetKeyUpper = activeIncident.targetKey ? activeIncident.targetKey.toUpperCase() : ''
+      const isTargetAffected = targetKeyUpper ? lineUpper.includes(targetKeyUpper) : true
+
+      incidentFeedback = {
+        title: activeIncident.title || 'ACTIVE INCIDENT',
+        targetKey: activeIncident.targetKey,
+        affected: isTargetAffected,
+        message: isTargetAffected
+          ? `Command targeted incident key "${activeIncident.targetKey || 'active'}". Active incident state updated!`
+          : `Incident "${activeIncident.title || 'Incident Response'}" active. Execution state recorded.`,
+      }
+    }
+
+    setOutput((prev) => [...prev, { line, reply, incidentFeedback }])
+    // Skip consecutive duplicates
     setCmdHistory((prev) => (prev[prev.length - 1] === line ? prev : [...prev, line]))
     setCmdIndex(-1)
     setDraft('')
@@ -242,7 +338,6 @@ export default function Terminal({ engine, onSubmit, onExecute, onCloseDrawer })
         setInput(cmdHistory[next])
       }
     } else if (event.ctrlKey && event.key === 'l') {
-      // redis-cli style clear screen
       event.preventDefault()
       setOutput([])
     }
@@ -250,7 +345,6 @@ export default function Terminal({ engine, onSubmit, onExecute, onCloseDrawer })
 
   const handleChange = (event) => {
     setInput(event.target.value)
-    // Typing cancels history browsing.
     if (cmdIndex !== -1) setCmdIndex(-1)
   }
 
@@ -279,12 +373,12 @@ export default function Terminal({ engine, onSubmit, onExecute, onCloseDrawer })
         {output.length === 0 && (
           <p className="text-dim">
             Welcome to Redis Quest. Try{' '}
-            <span className="text-cyan">SET name "Ada"</span> then{' '}
+            <span className="text-cyan">SET name &quot;Ada&quot;</span> then{' '}
             <span className="text-cyan">GET name</span>. Press{' '}
             <span className="text-amber">↑/↓</span> to recall commands.
           </p>
         )}
-        {output.map(({ line, reply }, index) => (
+        {output.map(({ line, reply, incidentFeedback }, index) => (
           <div key={index} className="mb-3">
             <div className="whitespace-pre-wrap break-words">
               <span className="select-none text-green">&gt;</span> <HighlightedLine line={line} />
@@ -292,6 +386,22 @@ export default function Terminal({ engine, onSubmit, onExecute, onCloseDrawer })
             <div className="whitespace-pre-wrap break-words pl-4">
               <ReplyView reply={reply} />
             </div>
+            {incidentFeedback && (
+              <div
+                className="mt-1.5 p-2 rounded border border-amber-500/40 bg-amber-950/30 text-amber-300 font-mono text-xs flex items-center justify-between shadow-glow animate-pulse ml-4"
+                data-testid="incident-feedback"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-slate-950 uppercase tracking-wider">
+                    INCIDENT FEEDBACK
+                  </span>
+                  <span>{incidentFeedback.message}</span>
+                </div>
+                <span className="text-[10px] text-amber-400/80 font-bold uppercase">
+                  {incidentFeedback.affected ? '⚡ TARGET MUTATED' : 'STATE RECORDED'}
+                </span>
+              </div>
+            )}
           </div>
         ))}
         <div ref={endRef} />
@@ -299,7 +409,7 @@ export default function Terminal({ engine, onSubmit, onExecute, onCloseDrawer })
 
       {/* Autocomplete Suggestions Popup */}
       {suggestions.length > 0 && input.trim().length > 0 && (
-        <div className="absolute bottom-full left-4 right-4 mb-1 p-2 bg-slate-900 border border-cyan/40 rounded-lg shadow-xl z-30 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+        <div className="absolute bottom-full left-4 right-4 mb-1 p-2 bg-slate-900 border border-cyan/40 rounded-lg shadow-xl z-30 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto" data-testid="autocomplete-popup">
           <div className="w-full text-[9px] font-bold text-cyan uppercase tracking-wider mb-1">
             Auto-Completion Suggestions:
           </div>
@@ -327,6 +437,11 @@ export default function Terminal({ engine, onSubmit, onExecute, onCloseDrawer })
             className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre text-fg"
           >
             <HighlightedLine line={input} />
+            {inlineHint && (
+              <span className="text-dim/40 font-mono select-none" data-testid="inline-syntax-hint">
+                {inlineHint}
+              </span>
+            )}
           </div>
           <input
             ref={inputRef}
