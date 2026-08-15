@@ -11,6 +11,10 @@ Do not repeat what the codebase already shows; point to the authoritative file o
 Prefer rewriting or pruning existing entries over appending new ones.
 When updating this file, preserve this bar for all agents and keep entries concise.
 
+## Incidents Catalog
+- Located in `src/data/incidents/memoryVillage/`.
+- Data-driven incident definitions and mini-boss definitions with 3-tier hints and MockRedisEngine verification tests.
+
 ## Audio System
 - Located in `src/audio/SoundEngine.js`.
 - Uses Web Audio API for SFX and procedural chiptune BGM.
