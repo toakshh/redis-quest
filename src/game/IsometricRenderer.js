@@ -86,74 +86,111 @@ export function drawIsoBlock(ctx, x, y, width = TILE_WIDTH, height = TILE_HEIGHT
 export function drawApiGate(ctx, x, y, state = 'corrupted', timeMs = Date.now()) {
   ctx.save()
 
-  const pillarHeight = 36
-  const pillarWidth = 14
+  const pillarHeight = 44
+  const pillarWidth = 16
+  const barrierSpan = 60
 
   if (state === 'locked') {
     // Solid locked barrier (SET api:gate:mode locked)
     // Left Pillar
-    drawIsoBlock(ctx, x - 24, y, pillarWidth, 8, pillarHeight, '#ef4444', '#b91c1c', '#7f1d1d')
+    drawIsoBlock(ctx, x - barrierSpan / 2, y, pillarWidth, 10, pillarHeight, '#ef4444', '#b91c1c', '#7f1d1d')
     // Right Pillar
-    drawIsoBlock(ctx, x + 24, y, pillarWidth, 8, pillarHeight, '#ef4444', '#b91c1c', '#7f1d1d')
+    drawIsoBlock(ctx, x + barrierSpan / 2, y, pillarWidth, 10, pillarHeight, '#ef4444', '#b91c1c', '#7f1d1d')
 
-    // Solid Force Field Barrier
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.7)'
+    // Solid Force Field Laser Wall
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.65)'
     ctx.strokeStyle = '#f87171'
     ctx.lineWidth = 3
     ctx.beginPath()
-    ctx.rect(x - 24, y - pillarHeight - 6, 48, pillarHeight)
+    ctx.rect(x - barrierSpan / 2, y - pillarHeight - 6, barrierSpan, pillarHeight)
     ctx.fill()
     ctx.stroke()
 
-    // Lock Symbol / Text Badge
-    ctx.fillStyle = '#ffffff'
-    ctx.font = 'bold 10px monospace'
+    // Laser Beam Grid Lines
+    ctx.strokeStyle = 'rgba(254, 202, 202, 0.8)'
+    ctx.lineWidth = 1.5
+    for (let lx = x - barrierSpan / 2 + 10; lx < x + barrierSpan / 2; lx += 12) {
+      ctx.beginPath()
+      ctx.moveTo(lx, y - 6)
+      ctx.lineTo(lx, y - pillarHeight - 6)
+      ctx.stroke()
+    }
+
+    // Lock Badge
+    ctx.fillStyle = '#0f172a'
+    ctx.beginPath()
+    ctx.rect(x - 45, y - pillarHeight - 22, 90, 16)
+    ctx.fill()
+    ctx.strokeStyle = '#ef4444'
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    ctx.fillStyle = '#fca5a5'
+    ctx.font = 'bold 9px monospace'
     ctx.textAlign = 'center'
-    ctx.fillText('🔒 LOCKED', x, y - pillarHeight / 2 - 6)
+    ctx.fillText('⛔ GATE LOCKED', x, y - pillarHeight - 10)
   } else if (state === 'corrupted') {
     // Flickering unstable gate when corrupted
     const flicker = Math.sin(timeMs / 40) * 0.3 + 0.7 + (Math.random() - 0.5) * 0.2
-    const alpha = Math.max(0.2, Math.min(1.0, flicker))
+    const alpha = Math.max(0.3, Math.min(1.0, flicker))
 
-    // Left Pillar (Corrupted Void Purple/Dark Red)
-    drawIsoBlock(ctx, x - 24, y, pillarWidth, 8, pillarHeight, '#8b5cf6', '#6d28d9', '#4c1d95')
+    // Left Pillar
+    drawIsoBlock(ctx, x - barrierSpan / 2, y, pillarWidth, 10, pillarHeight, '#8b5cf6', '#6d28d9', '#4c1d95')
     // Right Pillar
-    drawIsoBlock(ctx, x + 24, y, pillarWidth, 8, pillarHeight, '#8b5cf6', '#6d28d9', '#4c1d95')
+    drawIsoBlock(ctx, x + barrierSpan / 2, y, pillarWidth, 10, pillarHeight, '#8b5cf6', '#6d28d9', '#4c1d95')
 
-    // Unstable Flickering Energy Arcs
+    // Unstable Flickering Energy Barrier
     ctx.save()
     ctx.globalAlpha = alpha
     ctx.strokeStyle = '#c084fc'
     ctx.lineWidth = 2 + Math.random() * 2
     ctx.beginPath()
-    ctx.moveTo(x - 24, y - 10)
-    for (let i = -20; i <= 20; i += 8) {
+    ctx.moveTo(x - barrierSpan / 2, y - 10)
+    for (let i = -barrierSpan / 2; i <= barrierSpan / 2; i += 10) {
       const jitter = (Math.random() - 0.5) * 12
       ctx.lineTo(x + i, y - pillarHeight / 2 + jitter)
     }
-    ctx.lineTo(x + 24, y - 10)
+    ctx.lineTo(x + barrierSpan / 2, y - 10)
     ctx.stroke()
 
     // Glitch Fill
-    ctx.fillStyle = `rgba(168, 85, 247, ${alpha * 0.4})`
-    ctx.fillRect(x - 22, y - pillarHeight - 4, 44, pillarHeight)
+    ctx.fillStyle = `rgba(168, 85, 247, ${alpha * 0.5})`
+    ctx.fillRect(x - barrierSpan / 2 + 2, y - pillarHeight - 4, barrierSpan - 4, pillarHeight)
 
-    ctx.fillStyle = '#f43f5e'
+    ctx.fillStyle = '#0f172a'
+    ctx.beginPath()
+    ctx.rect(x - 55, y - pillarHeight - 22, 110, 16)
+    ctx.fill()
+    ctx.strokeStyle = '#c084fc'
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    ctx.fillStyle = '#e9d5ff'
     ctx.font = 'bold 9px monospace'
     ctx.textAlign = 'center'
-    ctx.fillText('⚡ CORRUPTED GATE', x, y - pillarHeight - 8)
+    ctx.fillText('⚡ CORRUPTED GATE', x, y - pillarHeight - 10)
     ctx.restore()
   } else {
-    // Open Gate
-    drawIsoBlock(ctx, x - 24, y, pillarWidth, 8, pillarHeight, '#10b981', '#047857', '#065f46')
-    drawIsoBlock(ctx, x + 24, y, pillarWidth, 8, pillarHeight, '#10b981', '#047857', '#065f46')
+    // Open Gate (Access Granted)
+    drawIsoBlock(ctx, x - barrierSpan / 2, y, pillarWidth, 10, pillarHeight, '#10b981', '#047857', '#065f46')
+    drawIsoBlock(ctx, x + barrierSpan / 2, y, pillarWidth, 10, pillarHeight, '#10b981', '#047857', '#065f46')
 
-    ctx.fillStyle = 'rgba(52, 211, 153, 0.3)'
-    ctx.fillRect(x - 20, y - pillarHeight, 40, pillarHeight)
-    ctx.fillStyle = '#34d399'
+    // Open Access Energy Field (Low Opacity Green Light)
+    ctx.fillStyle = 'rgba(52, 211, 153, 0.2)'
+    ctx.fillRect(x - barrierSpan / 2 + 4, y - pillarHeight, barrierSpan - 8, pillarHeight)
+
+    ctx.fillStyle = '#0f172a'
+    ctx.beginPath()
+    ctx.rect(x - 45, y - pillarHeight - 22, 90, 16)
+    ctx.fill()
+    ctx.strokeStyle = '#34d399'
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    ctx.fillStyle = '#6ee7b7'
     ctx.font = 'bold 9px monospace'
     ctx.textAlign = 'center'
-    ctx.fillText('OPEN GATE', x, y - pillarHeight - 8)
+    ctx.fillText('✅ GATE OPEN', x, y - pillarHeight - 10)
   }
 
   ctx.restore()

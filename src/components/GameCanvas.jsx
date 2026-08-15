@@ -288,12 +288,31 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const interactCurrentTile = () => {
     soundEngine.playSFX('interact')
     const p = playerRef.current
-    const chest = chests.find((c) => !c.looted && c.gx === Math.round(p.gx) && c.gy === Math.round(p.gy))
+    const curGx = Math.round(p.gx)
+    const curGy = Math.round(p.gy)
+
+    const chest = chests.find((c) => !c.looted && c.gx === curGx && c.gy === curGy)
     if (chest) {
       openChest(chest)
-    } else {
-      setBattleMessage('Searched area... No nearby objects to interact with.')
+      return
     }
+
+    // Interactive Gate Sensor check (corridor at gx = 8, gy = 1..5)
+    if (selectedRegion === 'memory-village' && Math.abs(curGx - 8) <= 1 && curGy >= 1 && curGy <= 5) {
+      const gateState = worldStateResolver.getApiGateState()
+      if (gateState === 'locked' || gateState === 'corrupted') {
+        setBattleMessage('🔒 API Gate Sensor: Gate is LOCKED due to corrupted state. Execute `SET api:gate:mode open` in terminal (~ key) to disarm barrier.')
+        if (onToggleTerminalDrawer && !isTerminalDrawerOpen) {
+          onToggleTerminalDrawer()
+        }
+        return
+      } else {
+        setBattleMessage('✅ API Gate: OPEN & Unlocked. Passage clear!')
+        return
+      }
+    }
+
+    setBattleMessage('Searched area... No nearby objects to interact with.')
   }
 
   // Play BGM with intensity
@@ -308,6 +327,16 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     const p = playerRef.current
     const newGx = Math.max(0, Math.min(map.width - 1, p.gx + dx))
     const newGy = Math.max(0, Math.min(map.height - 1, p.gy + dy))
+
+    // Physical Gate Collision Check (Memory Village Corridor at gx = 8, gy = 1..5)
+    if (selectedRegion === 'memory-village' && newGx === 8 && newGy >= 1 && newGy <= 5) {
+      const gateState = worldStateResolver.getApiGateState()
+      if (gateState === 'locked' || gateState === 'corrupted') {
+        soundEngine.playSFX('defeat')
+        setBattleMessage('⛔ ACCESS DENIED: Corrupted API Gate is LOCKED! Execute `SET api:gate:mode open` in terminal (~ key) to unlock.')
+        return
+      }
+    }
 
     if (newGx !== p.gx || newGy !== p.gy) {
       p.targetGx = newGx
@@ -516,12 +545,12 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         }
       }
 
-      // Draw dynamic API Gate at (12, 2)
-      const gateIso = gridToIso(12, 2)
+      // Draw dynamic API Gate Corridor at (8, 3)
+      const gateIso = gridToIso(8, 3)
       drawApiGate(ctx, gateIso.x, gateIso.y, worldStateResolver.getApiGateState(), time)
 
-      // Draw Queue Conveyor Belt at (4, 16)
-      const queueIso = gridToIso(4, 16)
+      // Draw Queue Conveyor Belt at (5, 12)
+      const queueIso = gridToIso(5, 12)
       drawQueueConveyor(ctx, queueIso.x, queueIso.y, worldStateResolver.getQueue('queue:jobs'), worldStateResolver.workerState, time)
 
       // Draw chests
