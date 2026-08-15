@@ -20,3 +20,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
 ## Inventory & Chest System
 - Inventory modal in `src/components/InventoryModal.jsx` (toggled via `I` hotkey or HUD button).
 - Chest Command educational overlay modal in `src/components/ChestCommandModal.jsx` with data in `src/data/chestCommands.js`.
+
+## Incident & Progressive Hint System
+- Incident HUD in `src/components/IncidentPanel.jsx` with `PressureMeter.jsx` and `SystemHealth.jsx`.
+- 3-Tier Progressive Hint Engine in `src/systems/HintEngine.js` (Tier 1: Symptom, Tier 2: Concept, Tier 3: Command Shape), integrated into `src/components/RexPanel.jsx`.
