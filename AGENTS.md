@@ -31,4 +31,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
 
 ## Hint Engine System
 - Located in `src/systems/hints/HintEngine.js`.
-- Provides 3-tier progressive hints (Observation, Concept, Command Shape), score penalty tracking, and REX dialogue triggers (`onSymptom`, `onCommandResult`, `getHint`).
+- Provides 3-tier progressive hints (Observation, Concept, Command Shape), score penalty tracking, and REX dialogue triggers (`onSymptom`, `onCommandResult`, `getHint`), integrated into `src/components/RexPanel.jsx`.
+
+## Incident HUD & Visual Indicators
+- Incident HUD in `src/components/IncidentPanel.jsx` with `PressureMeter.jsx` and `SystemHealth.jsx`.

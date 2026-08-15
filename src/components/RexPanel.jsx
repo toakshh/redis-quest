@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useGameStore } from '../store/gameStore.js'
 import { eventBus, EVENTS } from '../engine/EventBus.js'
+import hintEngine from '../systems/HintEngine.js'
 
 const REX_PERSONALITIES = {
   encouraging: {
@@ -121,7 +122,6 @@ function RexAvatar({ personality, speaking, variant }) {
 
   return (
     <div className="relative w-20 h-20 flex items-center justify-center mx-auto">
-      {/* Outer glow when speaking */}
       {speaking && (
         <div
           className="absolute inset-0 rounded-full animate-pulse"
@@ -132,7 +132,6 @@ function RexAvatar({ personality, speaking, variant }) {
         />
       )}
 
-      {/* Geometry */}
       <div
         className={`relative transition-all duration-300 ${speaking ? 'animate-bounce-subtle' : ''}`}
         style={{
@@ -224,18 +223,15 @@ function RexAvatar({ personality, speaking, variant }) {
         )}
         {geometry === 'tesseract' && (
           <div className="w-full h-full flex items-center justify-center" style={{ transformStyle: 'preserve-3d', transform: 'rotateX(-15deg) rotateY(20deg)' }}>
-            {/* Inner cube */}
             <div className="absolute w-1/2 h-1/2" style={{
               top: '25%', left: '25%',
               border: `2px solid ${color}80`,
               boxShadow: `0 0 15px ${color}40`,
             }} />
-            {/* Outer cube edges */}
             <div className="absolute w-full h-full border-2" style={{
               borderColor: color + '60',
               boxShadow: `0 0 20px ${color}30`,
             }} />
-            {/* Connecting lines */}
             <div className="absolute inset-0" style={{
               background: `linear-gradient(45deg, transparent 48%, ${color}30 50%, transparent 52%)`,
               maskImage: `conic-gradient(from 45deg, transparent 0deg, transparent 90deg, ${color}30 90deg, ${color}30 180deg, transparent 180deg, transparent 270deg, ${color}30 270deg, ${color}30 360deg)`,
@@ -244,7 +240,6 @@ function RexAvatar({ personality, speaking, variant }) {
         )}
       </div>
 
-      {/* Personality indicator */}
       <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs" style={{ borderColor: color, backgroundColor: 'var(--panel)' }}>
         {REX_PERSONALITIES[personality]?.emoji || '🤖'}
       </div>
@@ -270,20 +265,20 @@ function MessageBubble({ message, type, personality }) {
   const style = typeStyles[type] || typeStyles.default
 
   return (
-    <div className="animate-slideUp flex flex-col gap-1" style={{ borderLeft: `3px solid ${style.border}` }}>
+    <div className="animate-slideUp flex flex-col gap-1 p-2 rounded bg-panel2/50" style={{ borderLeft: `3px solid ${style.border}` }}>
       <div className="flex items-center gap-2">
         <span className="text-lg">{style.icon}</span>
         <span className="font-bold text-sm" style={{ color: style.titleColor }}>
           {message.title || 'REX'}
         </span>
+        {message.tierLabel && (
+          <span className="ml-auto px-2 py-0.5 rounded text-[9px] font-mono font-bold text-cyan bg-cyan/10 border border-cyan/30">
+            {message.tierLabel}
+          </span>
+        )}
         {message.xp && (
           <span className="ml-auto px-2 py-0.5 rounded text-[9px] font-bold text-amber bg-amber/10 border border-amber/30">
             +{message.xp} XP
-          </span>
-        )}
-        {message.rarity && (
-          <span className="ml-auto px-2 py-0.5 rounded text-[9px] font-bold text-dim" style={{ color: style.titleColor }}>
-            {message.rarity.toUpperCase()}
           </span>
         )}
       </div>
@@ -304,31 +299,24 @@ function MessageBubble({ message, type, personality }) {
   )
 }
 
-export default function RexPanel({ className = '' }) {
+export default function RexPanel({ className = '', contextId = 'general:default', onRequestHint }) {
   const [messages, setMessages] = useState([])
   const [personality, setPersonality] = useState('encouraging')
   const [speaking, setSpeaking] = useState(false)
   const [variant, setVariant] = useState({ geometry: 'cube', color: '#22d3ee' })
+  const [currentTier, setCurrentTier] = useState(0)
   const messagesEndRef = useRef(null)
   const { equippedCosmetic } = useGameStore()
 
-  // Get REX variant from cosmetic system
   useEffect(() => {
-    const rexCosmetic = equippedCosmetic?.rexVariant
-    if (rexCosmetic) {
-      // We'd need to import cosmeticSystem here or get from store
-      // For now use a default
-    }
-  }, [equippedCosmetic])
+    setCurrentTier(hintEngine.getCurrentTier(contextId))
+  }, [contextId])
 
-  // Listen for REX feedback events
   useEffect(() => {
     const handleFeedback = (data) => {
       const personalityData = REX_PERSONALITIES[personality]
-
       let newMessage = { ...data, timestamp: Date.now() }
 
-      // Add personality-specific flavor
       if (data.type === 'error' && data.consecutiveErrors > 2) {
         const frustrated = personalityData.responses.error[Math.floor(Math.random() * personalityData.responses.error.length)]
         newMessage = {
@@ -337,14 +325,13 @@ export default function RexPanel({ className = '' }) {
         }
       }
 
-      setMessages(prev => [...prev.slice(-9), newMessage]) // Keep last 10
+      setMessages(prev => [...prev.slice(-9), newMessage])
       setSpeaking(true)
       setTimeout(() => setSpeaking(false), 3000)
     }
 
     eventBus.on('rex:feedback', handleFeedback)
 
-    // Initial greeting
     const personalityData = REX_PERSONALITIES[personality]
     const greeting = personalityData.responses.greeting[0]
     setMessages([{ type: 'default', title: 'REX', message: greeting, timestamp: Date.now() }])
@@ -354,7 +341,6 @@ export default function RexPanel({ className = '' }) {
     }
   }, [personality])
 
-  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' })
   }, [messages])
@@ -364,6 +350,33 @@ export default function RexPanel({ className = '' }) {
     const personalityData = REX_PERSONALITIES[newPersonality]
     const greeting = personalityData.responses.greeting[0]
     setMessages(prev => [...prev, { type: 'default', title: 'REX', message: greeting, timestamp: Date.now() }])
+  }
+
+  // Request Progressive Hint through HintEngine
+  const handleRequestHint = () => {
+    const hintObj = hintEngine.requestHint(contextId)
+    setCurrentTier(hintObj.tier)
+
+    const personalityData = REX_PERSONALITIES[personality]
+    const prefix = personalityData.responses.hint[Math.floor(Math.random() * personalityData.responses.hint.length)] || ''
+
+    const hintMessage = {
+      type: 'hint',
+      title: `REX — ${hintObj.tierLabel}`,
+      tierLabel: hintObj.tierLabel,
+      tier: hintObj.tier,
+      message: `${prefix}${hintObj.text}`,
+      hint: hintObj.tierDescription,
+      timestamp: Date.now(),
+    }
+
+    setMessages(prev => [...prev, hintMessage])
+    setSpeaking(true)
+    setTimeout(() => setSpeaking(false), 2500)
+
+    if (onRequestHint) {
+      onRequestHint(hintObj)
+    }
   }
 
   const clearMessages = () => {
@@ -378,7 +391,7 @@ export default function RexPanel({ className = '' }) {
           <span className="text-xl">🤖</span>
           <div>
             <h2 className="text-sm font-bold tracking-widest text-fg">REX COMPANION</h2>
-            <p className="text-[9px] tracking-[0.2em] text-dim">Your Redis learning assistant</p>
+            <p className="text-[9px] tracking-[0.2em] text-dim">3-Tier Progressive Hint Engine</p>
           </div>
         </div>
         <button
@@ -414,7 +427,7 @@ export default function RexPanel({ className = '' }) {
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-dim">
             <span className="text-3xl mb-2">💬</span>
-            <p className="text-sm text-center">No messages yet. Execute a command!</p>
+            <p className="text-sm text-center">No messages yet. Execute a command or request a hint!</p>
           </div>
         ) : (
           messages.map((msg, index) => (
@@ -424,20 +437,20 @@ export default function RexPanel({ className = '' }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions with 3-Tier Request Hint */}
       <div className="border-t border-edge p-3 flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => {
-            const personalityData = REX_PERSONALITIES[personality]
-            const hint = personalityData.responses.hint[0] + 'Try HELP for available commands.'
-            setMessages(prev => [...prev, { type: 'hint', title: 'REX', message: hint, hint: 'Type HELP or HELP <command>', timestamp: Date.now() }])
-            setSpeaking(true)
-            setTimeout(() => setSpeaking(false), 2000)
-          }}
-          className="flex-1 min-w-[120px] px-3 py-2 rounded bg-cyan/10 border border-cyan/30 text-cyan text-[10px] font-medium hover:bg-cyan/20 transition-colors"
+          onClick={handleRequestHint}
+          className="flex-1 min-w-[120px] px-3 py-2 rounded bg-cyan/10 border border-cyan/40 text-cyan text-[10px] font-bold hover:bg-cyan/20 transition-all flex items-center justify-center gap-1.5 shadow-[0_0_10px_rgba(34,211,238,0.2)]"
         >
-          💡 Get Hint
+          <span>💡</span>
+          <span>Request Hint</span>
+          {currentTier > 0 && (
+            <span className="ml-1 px-1.5 py-0.2 bg-cyan/20 rounded border border-cyan/40 text-[9px]">
+              T{currentTier}/3
+            </span>
+          )}
         </button>
         <button
           type="button"
