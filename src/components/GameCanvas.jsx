@@ -236,16 +236,26 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const lastAttackTimeRef = useRef(0)
 
   // Camera instance ref
-  const cameraRef = useRef(new Camera({ viewportWidth: 1200, viewportHeight: 700, smoothFactor: 0.15 }))
+  const cameraRef = useRef(new Camera({ viewportWidth: 1200, viewportHeight: 700, smoothFactor: 0.12, minZoom: 0.5, maxZoom: 3 }))
   // Keep track of player position in ref for animation frame
   const playerRef = useRef({ gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' })
   
-  // Set initial world bounds on mount
+  // Compute correct isometric world bounds from a region map
+  const computeWorldBounds = (map) => {
+    const halfTW = TILE_WIDTH / 2
+    const halfTH = TILE_HEIGHT / 2
+    const minX = (0 - (map.height - 1)) * halfTW
+    const maxX = ((map.width - 1) - 0) * halfTW
+    const minY = 0
+    const maxY = ((map.width - 1) + (map.height - 1)) * halfTH
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+  }
+  
+  // Set initial world bounds & zoom on mount
   useEffect(() => {
     const map = REGION_MAPS['memory-village']
-    const worldWidth = map.width * (TILE_WIDTH / 2)
-    const worldHeight = map.height * (TILE_HEIGHT / 2)
-    cameraRef.current.setWorldBounds({ x: 0, y: 0, width: worldWidth, height: worldHeight })
+    cameraRef.current.setWorldBounds(computeWorldBounds(map))
+    cameraRef.current.setZoom(1.4)
   }, [])
 
   // Calculated active pause state: game pauses on popup, terminal open, ESC, victory or game over
@@ -284,10 +294,9 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     setPlayerGridPos({ gx: 2, gy: 2 })
     const initialIso = gridToIso(2, 2)
     cameraRef.current.moveTo(initialIso.x, initialIso.y)
-    // Set world bounds for camera clamping
-    const worldWidth = map.width * (TILE_WIDTH / 2)
-    const worldHeight = map.height * (TILE_HEIGHT / 2)
-    cameraRef.current.setWorldBounds({ x: 0, y: 0, width: worldWidth, height: worldHeight })
+    // Set world bounds for camera clamping (correct iso-projected extent)
+    cameraRef.current.setWorldBounds(computeWorldBounds(map))
+    cameraRef.current.setZoom(1.4)
     setBattleMessage(`Entered ${map.name}`)
   }
 
