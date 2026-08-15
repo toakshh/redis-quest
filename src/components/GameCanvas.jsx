@@ -67,6 +67,20 @@ export const REGION_MAPS = {
         requiredConcept: 'Key Deletion (DEL) is required to purge the corrupted shield key.',
       },
     ],
+    // Conveyor/Queue at (5,12) - List Queue for job processing
+    conveyor: {
+      gx: 5, gy: 12,
+      inputKey: 'queue:jobs',
+      outputKey: 'queue:processed',
+      active: false,
+    },
+    // API Gate at corridor (gx=8, gy=1-5) - blocks projectiles when open
+    gate: {
+      gx: 8,
+      gyStart: 1,
+      gyEnd: 5,
+      open: false,
+    },
   },
   'key-value-kingdom': {
     id: 'key-value-kingdom',
@@ -219,6 +233,16 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const [showVictory, setShowVictory] = useState(false)
   const [openedChestGem, setOpenedChestGem] = useState(null)
   const [enemyImmunityOverlay, setEnemyImmunityOverlay] = useState(null)
+  // Player health - resets to 100 per region
+  const [playerHealth, setPlayerHealth] = useState(100)
+  const [playerMaxHealth] = useState(100)
+  // Projectiles (API Request balls)
+  const [projectiles, setProjectiles] = useState([])
+  // Conveyor/Queue system
+  const [conveyorQueue, setConveyorQueue] = useState([])
+  const [conveyorActive, setConveyorActive] = useState(false)
+  // API Gate state
+  const [gateOpen, setGateOpen] = useState(false)
 
   // Camera instance ref
   const cameraRef = useRef(new Camera({ viewportWidth: 1200, viewportHeight: 700, smoothFactor: 0.15 }))
@@ -232,11 +256,20 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     setChests(map.chests)
     setEnemies(map.enemies)
     setEnemyImmunityOverlay(null)
+    // Reset player health to 100 when entering a new region
+    setPlayerHealth(100)
+    // Reset projectiles
+    setProjectiles([])
+    // Reset conveyor
+    setConveyorQueue([])
+    setConveyorActive(false)
+    // Reset gate
+    setGateOpen(false)
     playerRef.current = { gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' }
     setPlayerGridPos({ gx: 2, gy: 2 })
     const initialIso = gridToIso(2, 2)
     cameraRef.current.moveTo(initialIso.x, initialIso.y)
-    setBattleMessage(`Entered ${map.name}`)
+    setBattleMessage(`Entered ${map.name} - Health Reset: 100`)
   }
 
   // Keyboard & QWERTY Physical controls using IsometricEngineControls
@@ -472,6 +505,121 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       lastTime = time
 
       const map = REGION_MAPS[selectedRegion]
+      
+      // === GAME LOGIC UPDATES ===
+      // Spawn API Request projectiles from enemies periodically
+      if (Math.random() < 0.005 * dt * 60) { // ~5% per frame at 60fps
+        enemies.forEach((enemy) => {
+          if (enemy.hp > 0 && Math.random() < 0.3) {
+            const enemyIso = gridToIso(enemy.gx, enemy.gy)
+            setProjectiles(prev => [...prev, {
+              id: `proj_${Date.now()}_${Math.random()}`,
+              x: enemyIso.x,
+              y: enemyIso.y,
+              vx: (Math.random() - 0.5) * 200,
+              vy: (Math.random() - 0.5) * 200,
+              damage: 10,
+              fromEnemy: enemy.id,
+            }])
+          }
+        })
+      }
+      
+      // Update projectiles
+      setProjectiles(prev => {
+        const updated = prev.map(proj => ({
+          ...proj,
+          x: proj.x + proj.vx * dt,
+          y: proj.y + proj.vy * dt,
+        })).filter(proj => {
+          // Check if projectile hits player
+          const playerIso = gridToIso(p.gx, p.gy)
+          const dx = proj.x - playerIso.x
+          const dy = proj.y - playerIso.y
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          
+          if (dist < 30) { // Hit player
+            setPlayerHealth(h => Math.max(0, h - proj.damage))
+            soundEngine.playSFX('defeat')
+            setBattleMessage(`💥 Hit by API Request! Health: ${Math.max(0, playerHealth - proj.damage)}/100`)
+            return false // Remove projectile
+          }
+          
+          // Check if projectile hits gate when open
+          if (gateOpen && map.gate) {
+            const gateIsoYStart = gridToIso(map.gate.gx, map.gate.gyStart).y
+            const gateIsoYEnd = gridToIso(map.gate.gx, map.gate.gyEnd).y
+            const gateIsoX = gridToIso(map.gate.gx, map.gate.gyStart).x
+            
+            if (proj.x >= gateIsoX - 20 && proj.x <= gateIsoX + 20 &&
+                proj.y >= gateIsoYStart - 20 && proj.y <= gateIsoYEnd + 20) {
+              // Gate blocks projectile - create shield effect
+              soundEngine.playSFX('click')
+              return false // Remove projectile (blocked)
+            }
+          }
+          
+          // Remove projectiles that go off screen
+          return proj.x > -500 && proj.x < 500 && proj.y > -500 && proj.y < 500
+        })
+        return updated
+      })
+      
+      // Update conveyor queue
+      if (conveyorActive && map.conveyor) {
+        // Process queue: LPUSH -> RPOP simulation
+        if (Math.random() < 0.02 * dt * 60) { // Process job occasionally
+          setConveyorQueue(prev => {
+            if (prev.length > 0) {
+              const processed = prev[prev.length - 1]
+              // Spawn power-up or weaken enemy
+              const activeEnemy = enemies.find(e => e.hp > 0)
+              if (activeEnemy && Math.random() < 0.5) {
+                activeEnemy.hp = Math.max(1, activeEnemy.hp - 5)
+                setEnemies([...enemies])
+                setBattleMessage(`⚙️ Conveyor processed job! ${activeEnemy.name} weakened!`)
+              } else {
+                // Spawn health powerup
+                setPlayerHealth(h => Math.min(playerMaxHealth, h + 5))
+                setBattleMessage(`⚙️ Conveyor produced health pack! Health: ${Math.min(playerMaxHealth, playerHealth + 5)}/100`)
+              }
+              return prev.slice(0, -1)
+            }
+            return prev
+          })
+        }
+      }
+      
+      // Check if player interacts with conveyor
+      if (map.conveyor) {
+        const pGridX = Math.round(p.gx)
+        const pGridY = Math.round(p.gy)
+        if (pGridX === map.conveyor.gx && pGridY === map.conveyor.gy) {
+          if (!conveyorActive) {
+            setConveyorActive(true)
+            setConveyorQueue(['job1', 'job2', 'job3'])
+            setBattleMessage(`📦 Conveyor activated! Processing queue: ${map.conveyor.inputKey}`)
+            soundEngine.playSFX('gem')
+          }
+        }
+      }
+      
+      // Check if player interacts with gate
+      if (map.gate) {
+        const pGridX = Math.round(p.gx)
+        const pGridY = Math.round(p.gy)
+        if (pGridX === map.gate.gx && pGridY >= map.gate.gyStart && pGridY <= map.gate.gyEnd) {
+          if (!gateOpen) {
+            setGateOpen(true)
+            setBattleMessage(`🛡️ API Gate OPENED! Shield active - blocks projectiles`)
+            soundEngine.playSFX('victory')
+          }
+        } else if (gateOpen) {
+          // Close gate when player leaves
+          setGateOpen(false)
+        }
+      }
+      
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       // Update player position smooth lerp
@@ -602,6 +750,128 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         ctx.restore()
       })
 
+      // Draw Projectiles (API Request balls)
+      projectiles.forEach((proj) => {
+        const screen = cameraRef.current.worldToViewport(proj.x, proj.y)
+        ctx.fillStyle = '#f87171'
+        ctx.beginPath()
+        ctx.arc(screen.x, screen.y, 6, 0, Math.PI * 2)
+        ctx.fill()
+        // Glow
+        ctx.strokeStyle = 'rgba(248, 113, 113, 0.5)'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.arc(screen.x, screen.y, 10, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.fillStyle = '#ffffff'
+        ctx.font = 'bold 8px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText('API', screen.x, screen.y + 3)
+      })
+      
+      // Draw Conveyor/Queue
+      if (map.conveyor) {
+        const iso = gridToIso(map.conveyor.gx, map.conveyor.gy)
+        const screenX = iso.x
+        const screenY = iso.y
+        
+        // Conveyor belt visualization
+        const beltWidth = 60
+        const beltHeight = 20
+        const pulse = Math.sin(Date.now() / 150) * 0.5 + 0.5
+        
+        // Belt base
+        ctx.fillStyle = conveyorActive ? '#22c55e' : '#475569'
+        ctx.fillRect(screenX - beltWidth/2, screenY - beltHeight/2, beltWidth, beltHeight)
+        
+        // Moving indicators on belt
+        for (let i = 0; i < 5; i++) {
+          const offset = (Date.now() / 30 + i * 12) % (beltWidth + 10) - 5
+          ctx.fillStyle = conveyorActive ? '#86efac' : '#64748b'
+          ctx.beginPath()
+          ctx.arc(screenX - beltWidth/2 + offset, screenY, 4, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        
+        // Queue indicator
+        if (conveyorQueue.length > 0) {
+          ctx.fillStyle = '#f59e0b'
+          ctx.font = 'bold 10px sans-serif'
+          ctx.textAlign = 'center'
+          ctx.fillText(`QUEUE: ${conveyorQueue.length}`, screenX, screenY - 35)
+        }
+        
+        // Label
+        ctx.fillStyle = '#ffffff'
+        ctx.font = 'bold 9px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText('LIST QUEUE', screenX, screenY + 25)
+        ctx.font = '8px sans-serif'
+        ctx.fillText('(LPUSH/RPOP)', screenX, screenY + 35)
+      }
+      
+      // Draw API Gate
+      if (map.gate) {
+        for (let gy = map.gate.gyStart; gy <= map.gate.gyEnd; gy++) {
+          const iso = gridToIso(map.gate.gx, gy)
+          const screenX = iso.x
+          const screenY = iso.y
+          
+          if (gateOpen) {
+            // Open gate - shield effect
+            const pulse = Math.sin(Date.now() / 100) * 0.5 + 0.5
+            
+            // Shield barrier
+            ctx.strokeStyle = `rgba(34, 211, 238, ${0.5 + pulse * 0.3})`
+            ctx.lineWidth = 3
+            ctx.beginPath()
+            ctx.moveTo(screenX - 25, screenY - 30)
+            ctx.lineTo(screenX + 25, screenY - 30)
+            ctx.lineTo(screenX + 25, screenY + 10)
+            ctx.lineTo(screenX - 25, screenY + 10)
+            ctx.closePath()
+            ctx.stroke()
+            
+            // Shield glow
+            ctx.fillStyle = `rgba(34, 211, 238, ${0.1 + pulse * 0.1})`
+            ctx.beginPath()
+            ctx.moveTo(screenX - 25, screenY - 30)
+            ctx.lineTo(screenX + 25, screenY - 30)
+            ctx.lineTo(screenX + 25, screenY + 10)
+            ctx.lineTo(screenX - 25, screenY + 10)
+            ctx.closePath()
+            ctx.fill()
+            
+            // Shield particles
+            for (let i = 0; i < 3; i++) {
+              const px = screenX + (Math.sin(Date.now() / 200 + i) * 20)
+              const py = screenY - 10 + (Math.cos(Date.now() / 200 + i) * 15)
+              ctx.fillStyle = `rgba(34, 211, 238, ${0.5 + pulse * 0.3})`
+              ctx.beginPath()
+              ctx.arc(px, py, 3, 0, Math.PI * 2)
+              ctx.fill()
+            }
+          } else {
+            // Closed gate - just a barrier
+            ctx.fillStyle = '#475569'
+            ctx.fillRect(screenX - 15, screenY - 25, 30, 35)
+            ctx.strokeStyle = '#64748b'
+            ctx.lineWidth = 2
+            ctx.strokeRect(screenX - 15, screenY - 25, 30, 35)
+          }
+          
+          // Gate label
+          if (gy === Math.floor((map.gate.gyStart + map.gate.gyEnd) / 2)) {
+            ctx.fillStyle = gateOpen ? '#22d3ee' : '#94a3b8'
+            ctx.font = 'bold 9px sans-serif'
+            ctx.textAlign = 'center'
+            ctx.fillText(gateOpen ? 'API GATE ◈ OPEN' : 'API GATE ■ CLOSED', screenX, screenY - 35)
+            ctx.font = '8px sans-serif'
+            ctx.fillText('(Walk into corridor to activate)', screenX, screenY + 25)
+          }
+        }
+      }
+
       // Draw Player Avatar (REX / Hero)
       const pIso = gridToIso(p.gx, p.gy)
       const pScreenX = pIso.x
@@ -723,6 +993,25 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
             </button>
           </div>
         )}
+{/* Player Health Bar - top right */}
+        <div className="absolute top-4 right-4 flex items-center gap-2 p-2 bg-slate-900/90 backdrop-blur border border-cyan-500/50 rounded-lg z-10 shadow-lg">
+          <span className="text-[10px] font-bold text-cyan-400 tracking-widest uppercase">HP</span>
+          <div className="relative w-40 h-6 bg-slate-800 border border-slate-700 rounded overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-red-500 via-red-400 to-emerald-400 transition-all duration-300" 
+              style={{width: (playerHealth / playerMaxHealth) * 100 + '%'}}
+            />
+            <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-slate-950">
+              {playerHealth} / {playerMaxHealth}
+            </div>
+          </div>
+          {gateOpen && (
+            <span className="text-[10px] font-bold text-cyan-300 animate-pulse">🛡️ SHIELD</span>
+          )}
+          {conveyorActive && conveyorQueue.length > 0 && (
+            <span className="text-[10px] font-bold text-amber-300">⚙️ Q:{conveyorQueue.length}</span>
+          )}
+        </div>
 
         {/* HUD Control Legends Overlay - interactive */}
         <div className="absolute top-16 left-4 flex flex-col gap-1 p-2.5 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-xl text-[11px] font-mono text-slate-300 z-10 shadow-lg">
