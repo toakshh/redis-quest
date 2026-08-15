@@ -20,3 +20,9 @@ When updating this file, preserve this bar for all agents and keep entries conci
 ## Inventory & Chest System
 - Inventory modal in `src/components/InventoryModal.jsx` (toggled via `I` hotkey or HUD button).
 - Chest Command educational overlay modal in `src/components/ChestCommandModal.jsx` with data in `src/data/chestCommands.js`.
+
+## World Reactions & Consequence System
+- Consequence events handled via `src/systems/ConsequenceEngine.js`.
+- Dynamic visual world states (API Gate, Cache Corruption, Shield Expiry, Queue Conveyor) resolved via `src/systems/WorldStateResolver.js`.
+- Rendered in `src/components/GameCanvas.jsx` using `src/game/IsometricRenderer.js`.
+
