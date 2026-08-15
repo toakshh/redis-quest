@@ -226,6 +226,8 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const [enemyImmunityOverlay, setEnemyImmunityOverlay] = useState(null)
   const [playerHp, setPlayerHp] = useState(100)
   const [hitFlash, setHitFlash] = useState(false)
+  const [screenShakeIntensity, setScreenShakeIntensity] = useState(0)
+  const [hitOverlayOpacity, setHitOverlayOpacity] = useState(0)
   const [isManualPaused, setIsManualPaused] = useState(false)
   const [showGameOver, setShowGameOver] = useState(false)
 
@@ -237,6 +239,14 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const cameraRef = useRef(new Camera({ viewportWidth: 1200, viewportHeight: 700, smoothFactor: 0.15 }))
   // Keep track of player position in ref for animation frame
   const playerRef = useRef({ gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' })
+  
+  // Set initial world bounds on mount
+  useEffect(() => {
+    const map = REGION_MAPS['memory-village']
+    const worldWidth = map.width * (TILE_WIDTH / 2)
+    const worldHeight = map.height * (TILE_HEIGHT / 2)
+    cameraRef.current.setWorldBounds({ x: 0, y: 0, width: worldWidth, height: worldHeight })
+  }, [])
 
   // Calculated active pause state: game pauses on popup, terminal open, ESC, victory or game over
   const isTerminalActive = Boolean(isTerminalDrawerOpen || terminalOpen)
@@ -274,6 +284,10 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     setPlayerGridPos({ gx: 2, gy: 2 })
     const initialIso = gridToIso(2, 2)
     cameraRef.current.moveTo(initialIso.x, initialIso.y)
+    // Set world bounds for camera clamping
+    const worldWidth = map.width * (TILE_WIDTH / 2)
+    const worldHeight = map.height * (TILE_HEIGHT / 2)
+    cameraRef.current.setWorldBounds({ x: 0, y: 0, width: worldWidth, height: worldHeight })
     setBattleMessage(`Entered ${map.name}`)
   }
 
@@ -337,7 +351,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     if (selectedRegion === 'memory-village' && Math.abs(curGx - 8) <= 1 && curGy >= 1 && curGy <= 5) {
       const gateState = worldStateResolver.getApiGateState()
       if (gateState === 'locked' || gateState === 'corrupted') {
-        setBattleMessage('🔒 API Gate Sensor: Gate is LOCKED due to corrupted state. Execute `SET api:gate:mode open` in terminal (~ key) to disarm barrier.')
+        setBattleMessage('🔒 API Gate: LOCKED (Corrupted). Execute `SET api:gate:mode open` in terminal (~ key) to disarm barrier.')
         if (onToggleTerminalDrawer && !isTerminalDrawerOpen) {
           onToggleTerminalDrawer()
         }
@@ -346,6 +360,17 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         setBattleMessage('✅ API Gate: OPEN & Unlocked. Passage clear!')
         return
       }
+    }
+
+    // Interactive Queue Conveyor check (at gx = 5, gy = 12)
+    if (selectedRegion === 'memory-village' && Math.abs(curGx - 5) <= 1 && Math.abs(curGy - 12) <= 1) {
+      const queue = worldStateResolver.getQueue('queue:jobs')
+      const worker = worldStateResolver.workerState
+      setBattleMessage(`📦 Job Queue: ${queue.length} pending jobs. Worker: ${worker.active ? `Processing "${worker.item}" (${worker.action})` : 'Idle - press RPOP to process'}`)
+      if (onToggleTerminalDrawer && !isTerminalDrawerOpen) {
+        onToggleTerminalDrawer()
+      }
+      return
     }
 
     setBattleMessage('Searched area... No nearby objects to interact with.')
@@ -811,6 +836,18 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
           // HIT!
           proj.alive = false
           soundEngine.playSFX('defeat')
+          
+          // Screen shake effect
+          cameraRef.current.shake(12, 400)
+          setScreenShakeIntensity(12)
+          setTimeout(() => setScreenShakeIntensity(0), 400)
+          
+          // Red hit overlay effect
+          setHitOverlayOpacity(1)
+          setTimeout(() => setHitOverlayOpacity(0.6), 50)
+          setTimeout(() => setHitOverlayOpacity(0.3), 150)
+          setTimeout(() => setHitOverlayOpacity(0), 300)
+          
           setHitFlash(true)
           setTimeout(() => setHitFlash(false), 300)
 
@@ -918,9 +955,23 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       <div ref={containerRef} className="relative flex-1 bg-slate-950 flex items-center justify-center overflow-hidden w-full h-full">
         <canvas ref={canvasRef} className="w-full h-full block" />
 
+        {/* Screen shake handled via Camera.shake() in render loop */}
+
         {/* Damage Flash Red Screen Overlay */}
         {hitFlash && (
           <div className="absolute inset-0 bg-red-600/30 border-4 border-red-500 pointer-events-none z-50 animate-pulse" />
+        )}
+
+        {/* Red Hit Overlay Effect - Full screen red vignette */}
+        {hitOverlayOpacity > 0 && (
+          <div
+            className="absolute inset-0 pointer-events-none z-40"
+            style={{
+              background: `radial-gradient(ellipse at center, transparent 40%, rgba(239, 68, 68, ${hitOverlayOpacity * 0.6}) 100%)`,
+              boxShadow: `inset 0 0 ${200 * hitOverlayOpacity}px ${50 * hitOverlayOpacity}px rgba(239, 68, 68, ${hitOverlayOpacity * 0.8})`,
+              transition: 'opacity 100ms ease-out',
+            }}
+          />
         )}
 
         {/* Top-Right Survival & Server System Health HUD */}
