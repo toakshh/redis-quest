@@ -28,3 +28,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
 ## Scoring & Progression Systems
 - Incident performance scoring in `src/systems/scoring/ScoreEngine.js`.
 - Per-command mastery tracking in `src/systems/progression/MasteryEngine.js`.
+
+## Hint Engine System
+- Located in `src/systems/hints/HintEngine.js`.
+- Provides 3-tier progressive hints (Observation, Concept, Command Shape), score penalty tracking, and REX dialogue triggers (`onSymptom`, `onCommandResult`, `getHint`).
