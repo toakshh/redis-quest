@@ -25,7 +25,6 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
   const [activeWeapon, setActiveWeapon] = useState('SET')
   const activeWeaponRef = useRef('SET')
   const [battleMessage, setBattleMessage] = useState('3D SHOOTING ARENA ONLINE. DEFEND THE REDIS ENGINE!')
-  const [immunityOverlay, setImmunityOverlay] = useState(null)
 
   // GameStore state & REX interop
   const currentBoss = store.boss
@@ -205,7 +204,6 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
       if (engine3D.bossShieldActive || bossShieldActive) {
         engine3D.stripBossShield()
         setBattleMessage(`💥 Purged ${bossName} Shield with DEL!`)
-        setImmunityOverlay(null)
         executeCmd(`DEL ${bossShieldKey || 'goblin:shield'}`)
         if (currentBoss && !currentBoss.defeated && typeof store.attackBoss === 'function') {
           store.attackBoss(20)
