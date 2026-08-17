@@ -20,3 +20,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
 ## Inventory & Chest System
 - Inventory modal in `src/components/InventoryModal.jsx` (toggled via `I` hotkey or HUD button).
 - Chest Command educational overlay modal in `src/components/ChestCommandModal.jsx` with data in `src/data/chestCommands.js`.
+
+## 3D Shooting Mode & Engine
+- Mode selector in `src/components/ModeSelector.jsx` (persisted in `localStorage` key `rq_game_mode`, default 3D).
+- 3D engine in `src/components/Game3D/Engine3D.js` and `GameCanvas3D.jsx` using Three.js. Interoperates 1:1 with `gameStore.js`.

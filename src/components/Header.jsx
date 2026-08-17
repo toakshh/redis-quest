@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useGameStore, levelInfo } from '../store/gameStore.js'
 import { formatBytes } from '../engine/datatypes/memory.js'
+import ModeSelector from './ModeSelector.jsx'
 
 // Compact stat tile used for KEYS / MEM readouts. `value` is the emphasized
 // figure, `label` the dimmed caption.
@@ -31,7 +32,7 @@ function Meter({ pct, className }) {
 // Top app bar: brand, player level/XP, keys in the active db, and a live
 // used_memory gauge. Live-updates on every engine mutation (change/expired)
 // so keys + memory always reflect what the terminal just did.
-export default function Header({ engine, onOpenTutorial, onOpenTour, isFullscreen, onToggleFullscreen, className = '' }) {
+export default function Header({ engine, onOpenTutorial, onOpenTour, isFullscreen, onToggleFullscreen, gameMode, onGameModeChange, className = '' }) {
   const xp = useGameStore((s) => s.xp)
   const skillPoints = useGameStore((s) => s.skillPoints)
   const unlockedSkills = useGameStore((s) => s.unlockedSkills)
@@ -69,16 +70,19 @@ export default function Header({ engine, onOpenTutorial, onOpenTour, isFullscree
       className={`flex items-center justify-between gap-6 border-b border-edge bg-panel/60 px-6 py-3 ${className}`}
     >
       {/* brand */}
-      <div className="flex items-center gap-3">
-        <span className="glow-text text-2xl font-bold text-cyan">{'>_'}</span>
-        <div className="leading-tight">
-          <h1 className="text-lg font-bold tracking-widest text-cyan">
-            REDIS QUEST
-          </h1>
-          <p className="text-[9px] tracking-[0.25em] text-dim">
-            CYBERPUNK REDIS LAB
-          </p>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <span className="glow-text text-2xl font-bold text-cyan">{'>_'}</span>
+          <div className="leading-tight">
+            <h1 className="text-lg font-bold tracking-widest text-cyan">
+              REDIS QUEST
+            </h1>
+            <p className="text-[9px] tracking-[0.25em] text-dim">
+              CYBERPUNK REDIS LAB
+            </p>
+          </div>
         </div>
+        <ModeSelector currentMode={gameMode} onModeChange={onGameModeChange} />
       </div>
 
       {/* live stats */}
