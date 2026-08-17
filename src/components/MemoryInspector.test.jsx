@@ -136,4 +136,19 @@ describe('MemoryInspector', () => {
     expect(rows[0]).toContain('greeting') // alphabetical, 'greeting' < 'queue' < ...
     expect(nameSort.getAttribute('aria-pressed')).toBe('true')
   })
+
+  it('applies flash animation and mutation highlighting on recently modified keys', () => {
+    seed(engine)
+    const view = render(engine)
+    cleanup = () => view.root.unmount()
+
+    act(() => {
+      engine.rawExecute('SET', 'greeting', 'updated-value')
+    })
+
+    const greetingRow = [...document.querySelectorAll('li')].find((li) => li.textContent.includes('greeting'))
+    expect(greetingRow).not.toBeUndefined()
+    expect(greetingRow.getAttribute('data-modified')).toBe('true')
+    expect(greetingRow.textContent).toContain('⚡ MUTATED')
+  })
 })

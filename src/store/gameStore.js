@@ -803,6 +803,8 @@ const initialState = () => ({
   // Skill tree
   skillPoints: 0, // unspent skill points (1 per level)
   unlockedSkills: [], // skill ids
+  // Active Incident State for incident response gameplay
+  activeIncident: null, // { id, title, targetKey, status, feedback }
 })
 
 export const useGameStore = create((set, get) => {
@@ -1267,6 +1269,8 @@ export const useGameStore = create((set, get) => {
     setVisualGuides(visualGuides) { set({ visualGuides }) },
     setSpeedrunTimer(speedrunTimer) { set({ speedrunTimer }) },
     setTerminalAutocomplete(terminalAutocomplete) { set({ terminalAutocomplete }) },
+    setActiveIncident(activeIncident) { set({ activeIncident }) },
+    clearActiveIncident() { set({ activeIncident: null }) },
     setAutoSaveInterval(autoSaveInterval) { set({ autoSaveInterval }) },
     dismissObjectiveBanner() {
       set({ objectiveBannerDismissed: true })

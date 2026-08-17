@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useGameStore } from '../store/gameStore.js'
 import { juiceSystem } from '../systems/JuiceSystem.js'
+import { consequenceEngine, CONSEQUENCE_EVENTS } from '../systems/ConsequenceEngine.js'
+import { eventBus, EVENTS } from '../engine/EventBus.js'
 
 export default function JuiceOverlay({ className = '' }) {
   const canvasRef = useRef(null)
@@ -65,6 +67,58 @@ export default function JuiceOverlay({ className = '' }) {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
       }
+    }
+  }, [])
+
+  // Listen for consequence events (objective satisfied, pressure dropped, incident resolved)
+  useEffect(() => {
+    const handleObjectiveSatisfied = () => {
+      juiceSystem.victoryFlash()
+      juiceSystem.burst(window.innerWidth / 2, window.innerHeight / 3, 30, {
+        color: '#fbbf24',
+        size: 8,
+        shape: 'star',
+        speed: 5,
+      })
+    }
+
+    const handlePressureDropped = ({ payload }) => {
+      juiceSystem.flash('rgba(52, 211, 153, 0.3)', 200)
+      juiceSystem.shake(4, 200)
+      juiceSystem.burst(window.innerWidth / 2, window.innerHeight / 2, 20, {
+        color: '#34d399',
+        size: 6,
+        shape: 'circle',
+        speed: 4,
+      })
+    }
+
+    const handleIncidentResolved = ({ payload }) => {
+      juiceSystem.flash('rgba(56, 189, 248, 0.4)', 250)
+      juiceSystem.shake(6, 300)
+      juiceSystem.burst(window.innerWidth / 2, window.innerHeight / 2, 25, {
+        color: '#38bdf8',
+        size: 7,
+        shape: 'star',
+        speed: 6,
+      })
+    }
+
+    const unsubObjective = consequenceEngine.on(CONSEQUENCE_EVENTS.OBJECTIVE_SATISFIED, handleObjectiveSatisfied)
+    const unsubPressure = consequenceEngine.on(CONSEQUENCE_EVENTS.PRESSURE_DROPPED, handlePressureDropped)
+    const unsubIncident = consequenceEngine.on(CONSEQUENCE_EVENTS.INCIDENT_RESOLVED, handleIncidentResolved)
+
+    const unsubBusObj = eventBus.on('objective_satisfied', handleObjectiveSatisfied)
+    const unsubBusPress = eventBus.on('pressure_dropped', handlePressureDropped)
+    const unsubBusInc = eventBus.on('incident_resolved', handleIncidentResolved)
+
+    return () => {
+      unsubObjective()
+      unsubPressure()
+      unsubIncident()
+      unsubBusObj()
+      unsubBusPress()
+      unsubBusInc()
     }
   }, [])
 

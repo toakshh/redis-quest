@@ -17,6 +17,7 @@ import { getSavedGameMode } from './components/ModeSelector.jsx'
 import InventoryModal from './components/InventoryModal.jsx'
 import OnboardingModal, { hasCompletedOnboarding } from './components/OnboardingModal.jsx'
 import UITourModal from './components/UITourModal.jsx'
+import WelcomeOverlay from './components/WelcomeOverlay.jsx'
 import { soundEngine } from './audio/SoundEngine.js'
 
 // One shared engine for the whole app: the terminal executes through it, the
@@ -56,12 +57,11 @@ export default function App() {
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false)
   const [isTourOpen, setIsTourOpen] = useState(false)
   const [isInventoryOpen, setIsInventoryOpen] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(true)
 
   // Bind the singleton engine to the game store once (idempotent in the store).
   useEffect(() => {
     useGameStore.getState().bindEngine(engine)
-    soundEngine.init()
-    soundEngine.playBGM()
 
     // Subscribe to engine commands to trigger sounds
     const unsubscribe = engine.on('command', ({ name, args, reply }) => {
@@ -118,6 +118,9 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col relative bg-bg text-fg overflow-hidden">
+      {showWelcome && (
+        <WelcomeOverlay onStart={() => setShowWelcome(false)} />
+      )}
       {!isFullscreen && (
         <Header
           engine={engine}

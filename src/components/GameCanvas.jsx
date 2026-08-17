@@ -2,12 +2,17 @@ import React, { useEffect, useRef, useState } from 'react'
 import { soundEngine } from '../audio/SoundEngine.js'
 import VictoryModal from './VictoryModal.jsx'
 import ChestCommandModal from './ChestCommandModal.jsx'
+import GameOverModal from './GameOverModal.jsx'
+import PauseModal from './PauseModal.jsx'
 import { GameLoop } from '../game/GameLoop.js'
 import { World } from '../game/World.js'
-import { drawIsoTile, drawIsoBlock, gridToIso, isoToGrid, TILE_WIDTH, TILE_HEIGHT } from '../game/IsometricRenderer.js'
+import { drawIsoTile, drawIsoBlock, gridToIso, isoToGrid, TILE_WIDTH, TILE_HEIGHT, drawApiGate, drawCacheCorruptionAura, drawShieldExpiryOverlay, drawQueueConveyor, drawApiRequestProjectile, drawEnergyBall } from '../game/IsometricRenderer.js'
+import SystemHealth from './SystemHealth.jsx'
 import { IsometricEngineControls } from '../game/IsometricEngine.js'
 import { Camera } from '../game/Camera.js'
 import { useGameStore } from '../store/gameStore.js'
+import { consequenceEngine, CONSEQUENCE_EVENTS } from '../systems/ConsequenceEngine.js'
+import { worldStateResolver } from '../systems/WorldStateResolver.js'
 
 // Compute where an offscreen objective marker should sit on the viewport edge.
 // Uses camera coordinate translation matching the render loop.
@@ -219,11 +224,62 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const [showVictory, setShowVictory] = useState(false)
   const [openedChestGem, setOpenedChestGem] = useState(null)
   const [enemyImmunityOverlay, setEnemyImmunityOverlay] = useState(null)
+  const [playerHp, setPlayerHp] = useState(100)
+  const [hitFlash, setHitFlash] = useState(false)
+  const [screenShakeIntensity, setScreenShakeIntensity] = useState(0)
+  const [hitOverlayOpacity, setHitOverlayOpacity] = useState(0)
+  const [isManualPaused, setIsManualPaused] = useState(false)
+  const [showGameOver, setShowGameOver] = useState(false)
+
+  // Energy Ball / API Request projectiles & attack timer refs
+  const projectilesRef = useRef([])
+  const lastAttackTimeRef = useRef(0)
 
   // Camera instance ref
-  const cameraRef = useRef(new Camera({ viewportWidth: 1200, viewportHeight: 700, smoothFactor: 0.15 }))
+  const cameraRef = useRef(new Camera({ viewportWidth: 1200, viewportHeight: 700, smoothFactor: 0.12, minZoom: 0.5, maxZoom: 3 }))
   // Keep track of player position in ref for animation frame
   const playerRef = useRef({ gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' })
+  
+  // Compute correct isometric world bounds from a region map
+  const computeWorldBounds = (map) => {
+    const halfTW = TILE_WIDTH / 2
+    const halfTH = TILE_HEIGHT / 2
+    const minX = (0 - (map.height - 1)) * halfTW
+    const maxX = ((map.width - 1) - 0) * halfTW
+    const minY = 0
+    const maxY = ((map.width - 1) + (map.height - 1)) * halfTH
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+  }
+  
+  // Set initial world bounds & zoom on mount
+  useEffect(() => {
+    const map = REGION_MAPS['memory-village']
+    cameraRef.current.setWorldBounds(computeWorldBounds(map))
+    cameraRef.current.setZoom(1.4)
+  }, [])
+
+  // Calculated active pause state: game pauses on popup, terminal open, ESC, victory or game over
+  const isTerminalActive = Boolean(isTerminalDrawerOpen || terminalOpen)
+  const isGamePaused = Boolean(isManualPaused || openedChestGem || isTerminalActive || showGameOver || showVictory)
+  const isGamePausedRef = useRef(isGamePaused)
+  isGamePausedRef.current = isGamePaused
+
+  // ESC key toggle pause listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        const activeEl = document.activeElement
+        const isInput = activeEl && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName)
+        if (!isInput) {
+          e.preventDefault()
+          soundEngine.playSFX('click')
+          setIsManualPaused((prev) => !prev)
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // Switch region
   const handleRegionSelect = (regionId) => {
@@ -232,16 +288,21 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     setChests(map.chests)
     setEnemies(map.enemies)
     setEnemyImmunityOverlay(null)
+    setIsManualPaused(false)
+    setShowGameOver(false)
     playerRef.current = { gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' }
     setPlayerGridPos({ gx: 2, gy: 2 })
     const initialIso = gridToIso(2, 2)
     cameraRef.current.moveTo(initialIso.x, initialIso.y)
+    // Set world bounds for camera clamping (correct iso-projected extent)
+    cameraRef.current.setWorldBounds(computeWorldBounds(map))
+    cameraRef.current.setZoom(1.4)
     setBattleMessage(`Entered ${map.name}`)
   }
 
   // Keyboard & QWERTY Physical controls using IsometricEngineControls
   useEffect(() => {
-    if (openedChestGem) return
+    if (openedChestGem || isGamePaused) return
     const controls = new IsometricEngineControls({
       onMove: (dx, dy) => movePlayer(dx, dy),
       onInteract: () => interactCurrentTile(),
@@ -257,7 +318,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
 
     controls.attach(window)
     return () => controls.detach(window)
-  }, [terminalOpen, selectedRegion, chests, enemies, openedChestGem])
+  }, [terminalOpen, selectedRegion, chests, enemies, openedChestGem, isGamePaused])
 
   const handleProceed = () => {
     const regionIds = Object.keys(REGION_MAPS)
@@ -286,12 +347,42 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
   const interactCurrentTile = () => {
     soundEngine.playSFX('interact')
     const p = playerRef.current
-    const chest = chests.find((c) => !c.looted && c.gx === Math.round(p.gx) && c.gy === Math.round(p.gy))
+    const curGx = Math.round(p.gx)
+    const curGy = Math.round(p.gy)
+
+    const chest = chests.find((c) => !c.looted && c.gx === curGx && c.gy === curGy)
     if (chest) {
       openChest(chest)
-    } else {
-      setBattleMessage('Searched area... No nearby objects to interact with.')
+      return
     }
+
+    // Interactive Gate Sensor check (corridor at gx = 8, gy = 1..5)
+    if (selectedRegion === 'memory-village' && Math.abs(curGx - 8) <= 1 && curGy >= 1 && curGy <= 5) {
+      const gateState = worldStateResolver.getApiGateState()
+      if (gateState === 'locked' || gateState === 'corrupted') {
+        setBattleMessage('🔒 API Gate: LOCKED (Corrupted). Execute `SET api:gate:mode open` in terminal (~ key) to disarm barrier.')
+        if (onToggleTerminalDrawer && !isTerminalDrawerOpen) {
+          onToggleTerminalDrawer()
+        }
+        return
+      } else {
+        setBattleMessage('✅ API Gate: OPEN & Unlocked. Passage clear!')
+        return
+      }
+    }
+
+    // Interactive Queue Conveyor check (at gx = 5, gy = 12)
+    if (selectedRegion === 'memory-village' && Math.abs(curGx - 5) <= 1 && Math.abs(curGy - 12) <= 1) {
+      const queue = worldStateResolver.getQueue('queue:jobs')
+      const worker = worldStateResolver.workerState
+      setBattleMessage(`📦 Job Queue: ${queue.length} pending jobs. Worker: ${worker.active ? `Processing "${worker.item}" (${worker.action})` : 'Idle - press RPOP to process'}`)
+      if (onToggleTerminalDrawer && !isTerminalDrawerOpen) {
+        onToggleTerminalDrawer()
+      }
+      return
+    }
+
+    setBattleMessage('Searched area... No nearby objects to interact with.')
   }
 
   // Play BGM with intensity
@@ -306,6 +397,16 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     const p = playerRef.current
     const newGx = Math.max(0, Math.min(map.width - 1, p.gx + dx))
     const newGy = Math.max(0, Math.min(map.height - 1, p.gy + dy))
+
+    // Physical Gate Collision Check (Memory Village Corridor at gx = 8, gy = 1..5)
+    if (selectedRegion === 'memory-village' && newGx === 8 && newGy >= 1 && newGy <= 5) {
+      const gateState = worldStateResolver.getApiGateState()
+      if (gateState === 'locked' || gateState === 'corrupted') {
+        soundEngine.playSFX('defeat')
+        setBattleMessage('⛔ ACCESS DENIED: Corrupted API Gate is LOCKED! Execute `SET api:gate:mode open` in terminal (~ key) to unlock.')
+        return
+      }
+    }
 
     if (newGx !== p.gx || newGy !== p.gy) {
       p.targetGx = newGx
@@ -328,6 +429,8 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     const p = playerRef.current
     const activeEnemy = enemies.find((e) => e.hp > 0 && Math.abs(e.gx - p.gx) <= 4 && Math.abs(e.gy - p.gy) <= 4)
 
+    consequenceEngine.processCommand(gem, [activeEnemy?.shieldKey || ''])
+
     if (activeEnemy) {
       if (gem === activeEnemy.counterGem || gem === 'DEL') {
         const damage = 35
@@ -343,6 +446,7 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         if (newHp === 0) {
           setBattleMessage(`💥 Countered ${activeEnemy.name} with ${gem}! Enemy Defeated! (+50 XP)`)
           store.addXp(50)
+          consequenceEngine.triggerIncidentResolved(activeEnemy.id, { enemyName: activeEnemy.name })
         } else {
           setBattleMessage(`⚡ Cast ${gem}! Hit ${activeEnemy.name} for ${damage} dmg! (${newHp}/${activeEnemy.maxHp} HP)`)
         }
@@ -392,14 +496,18 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
     const cmd = terminalInput.trim()
     setTerminalLogs((prev) => [...prev, `> ${cmd}`])
 
+    const parts = cmd.split(' ')
+    const verb = parts[0].toUpperCase()
+    const args = parts.slice(1)
+    
+    consequenceEngine.processCommand(verb, args)
+
     if (engine) {
       const res = store.runCommand(cmd)
       const output = res.type === 'error' ? `ERR: ${res.value}` : JSON.stringify(res.value)
       setTerminalLogs((prev) => [...prev, output])
 
       // World live react (e.g. DEL enemy shield or SET item)
-      const parts = cmd.split(' ')
-      const verb = parts[0].toUpperCase()
       const arg1 = parts[1]
 
       const p = playerRef.current
@@ -472,10 +580,57 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       lastTime = time
 
       const map = REGION_MAPS[selectedRegion]
+      const p = playerRef.current
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
+      // Check pause state
+      if (isGamePausedRef.current) {
+        // Draw static scene without updating timers, lerp, or physics
+        for (let gx = 0; gx < map.width; gx++) {
+          for (let gy = 0; gy < map.height; gy++) {
+            const iso = gridToIso(gx, gy)
+            const isChecker = (gx + gy) % 2 === 0
+            const fillColor = isChecker ? map.tileColor1 : map.tileColor2
+            drawIsoTile(ctx, iso.x, iso.y, TILE_WIDTH, TILE_HEIGHT, fillColor, map.borderColor)
+          }
+        }
+        const gateIso = gridToIso(8, 3)
+        drawApiGate(ctx, gateIso.x, gateIso.y, worldStateResolver.getApiGateState(), time)
+        const queueIso = gridToIso(5, 12)
+        drawQueueConveyor(ctx, queueIso.x, queueIso.y, worldStateResolver.getQueue('queue:jobs'), worldStateResolver.workerState, time)
+
+        chests.forEach((chest) => {
+          const iso = gridToIso(chest.gx, chest.gy)
+          if (chest.looted) {
+            drawIsoBlock(ctx, iso.x, iso.y, 24, 12, 10, '#64748b', '#475569', '#334155')
+          } else {
+            drawIsoBlock(ctx, iso.x, iso.y, 24, 12, 14, '#f59e0b', '#d97706', '#b45309')
+          }
+        })
+
+        enemies.forEach((enemy) => {
+          if (enemy.hp <= 0) return
+          const iso = gridToIso(enemy.gx, enemy.gy)
+          drawIsoBlock(ctx, iso.x, iso.y, 28, 14, 22, '#ef4444', '#dc2626', '#b91c1c')
+        })
+
+        const pIso = gridToIso(p.gx, p.gy)
+        drawIsoBlock(ctx, pIso.x, pIso.y, 30, 15, 26, '#06b6d4', '#0891b2', '#0e7490')
+
+        // Static pause overlay banner
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.45)'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.fillStyle = '#fbbf24'
+        ctx.font = 'bold 14px monospace'
+        ctx.textAlign = 'center'
+        ctx.fillText('⏸️ GAME PAUSED — SUSPENDED', canvas.width / 2, canvas.height / 2)
+
+        cameraRef.current.restoreContext(ctx)
+        animationFrameId = requestAnimationFrame(render)
+        return
+      }
+
       // Update player position smooth lerp
-      const p = playerRef.current
       if (p.animProgress < 1) {
         p.animProgress = Math.min(1, p.animProgress + 0.1)
         p.gx = p.gx + (p.targetGx - p.gx) * p.animProgress
@@ -486,6 +641,9 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       const playerWorldIso = gridToIso(p.gx, p.gy)
       cameraRef.current.follow(playerWorldIso)
       cameraRef.current.update(dt)
+
+      // Update world state resolver timer / animation states
+      worldStateResolver.update(dt)
 
       // Apply camera view matrix transform
       cameraRef.current.applyToContext(ctx)
@@ -503,6 +661,14 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
           drawIsoTile(ctx, screenX, screenY, TILE_WIDTH, TILE_HEIGHT, fillColor, map.borderColor)
         }
       }
+
+      // Draw dynamic API Gate Corridor at (8, 3)
+      const gateIso = gridToIso(8, 3)
+      drawApiGate(ctx, gateIso.x, gateIso.y, worldStateResolver.getApiGateState(), time)
+
+      // Draw Queue Conveyor Belt at (5, 12)
+      const queueIso = gridToIso(5, 12)
+      drawQueueConveyor(ctx, queueIso.x, queueIso.y, worldStateResolver.getQueue('queue:jobs'), worldStateResolver.workerState, time)
 
       // Draw chests
       chests.forEach((chest) => {
@@ -556,6 +722,17 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         const iso = gridToIso(enemy.gx, enemy.gy)
         const screenX = iso.x
         const screenY = iso.y
+
+        // Cache Corruption visual reaction
+        if (worldStateResolver.isCacheCorrupted(enemy.id) || (enemy.id === 'mv_e1' && worldStateResolver.hasAnyCacheCorruption())) {
+          drawCacheCorruptionAura(ctx, screenX, screenY, 32, time)
+        }
+
+        // Shield Expiry visual reaction
+        const shieldExpiry = worldStateResolver.getShieldExpiry(enemy.shieldKey) || (enemy.shieldKey === 'bomb:timer' ? { remaining: 5 } : null)
+        if (shieldExpiry) {
+          drawShieldExpiryOverlay(ctx, screenX, screenY - 10, 34, shieldExpiry.remaining, time)
+        }
 
         // Red monster block
         drawIsoBlock(ctx, screenX, screenY, 28, 14, 22, '#ef4444', '#dc2626', '#b91c1c')
@@ -622,6 +799,87 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       ctx.textAlign = 'center'
       ctx.fillText('HERO (REX)', pScreenX, pScreenY - 42 - bob)
 
+      // Villain API Request Attack Loop (Active enemies launch API Request floods toward player)
+      const activeEnemies = enemies.filter((e) => e.hp > 0)
+      if (activeEnemies.length > 0 && time - lastAttackTimeRef.current > 3200) {
+        lastAttackTimeRef.current = time
+        activeEnemies.forEach((enemy) => {
+          projectilesRef.current.push({
+            id: `proj_${Date.now()}_${Math.random()}`,
+            gx: enemy.gx,
+            gy: enemy.gy,
+            targetGx: p.gx,
+            targetGy: p.gy,
+            speed: 3.5,
+            alive: true,
+          })
+        })
+      }
+
+      // Update & Draw API Request Projectiles
+      projectilesRef.current = projectilesRef.current.filter((proj) => {
+        if (!proj.alive) return false
+
+        const dx = proj.targetGx - proj.gx
+        const dy = proj.targetGy - proj.gy
+        const distToTarget = Math.hypot(dx, dy)
+
+        if (distToTarget < 0.15) {
+          proj.alive = false
+          return false
+        }
+
+        // Advance projectile along vector
+        const vx = (dx / distToTarget) * proj.speed * dt
+        const vy = (dy / distToTarget) * proj.speed * dt
+        proj.gx += vx
+        proj.gy += vy
+
+        // Draw API Request Projectile
+        const projIso = gridToIso(proj.gx, proj.gy)
+        drawApiRequestProjectile(ctx, projIso.x, projIso.y - 12, 10, '#c084fc', time)
+
+        // Collision Check with Player
+        const distToPlayer = Math.hypot(proj.gx - p.gx, proj.gy - p.gy)
+        if (distToPlayer < 0.75) {
+          // HIT!
+          proj.alive = false
+          soundEngine.playSFX('defeat')
+          
+          // Screen shake effect
+          cameraRef.current.shake(12, 400)
+          setScreenShakeIntensity(12)
+          setTimeout(() => setScreenShakeIntensity(0), 400)
+          
+          // Red hit overlay effect
+          setHitOverlayOpacity(1)
+          setTimeout(() => setHitOverlayOpacity(0.6), 50)
+          setTimeout(() => setHitOverlayOpacity(0.3), 150)
+          setTimeout(() => setHitOverlayOpacity(0), 300)
+          
+          setHitFlash(true)
+          setTimeout(() => setHitFlash(false), 300)
+
+          setPlayerHp((prevHp) => {
+            const nextHp = Math.max(0, prevHp - 30)
+            if (nextHp === 0) {
+              // PLAYER DIED! Trigger Game Over Modal & System Health degradation
+              worldStateResolver.reduceSystemHealth(25)
+              consequenceEngine.emit(CONSEQUENCE_EVENTS.PLAYER_DIED, { damage: 25 })
+              setShowGameOver(true)
+              setBattleMessage('🚨 OPERATOR OVERLOAD! Unthrottled API Request flood crashed hero system. Redis System Health degraded (-25%).')
+              return 0
+            } else {
+              setBattleMessage(`💥 UNTHROTTLED API REQUEST HIT! Operator overloaded (-30 HP, ${nextHp}/100 HP remaining)`)
+              return nextHp
+            }
+          })
+          return false
+        }
+
+        return true
+      })
+
       // Restore camera context transform
       cameraRef.current.restoreContext(ctx)
 
@@ -657,6 +915,19 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              soundEngine.playSFX('click')
+              setIsManualPaused((prev) => !prev)
+            }}
+            className={`px-3 py-1 text-xs rounded font-bold border transition-all ${
+              isManualPaused
+                ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-[0_0_12px_rgba(245,158,11,0.5)]'
+                : 'bg-slate-800 text-amber-400 border-amber-500/30 hover:border-amber-400'
+            }`}
+          >
+            {isManualPaused ? '▶️ RESUME (ESC)' : '⏸️ PAUSE (ESC)'}
+          </button>
           {onToggleFullscreen && (
             <button
               onClick={() => {soundEngine.playSFX('nav'); onToggleFullscreen()}}
@@ -692,6 +963,57 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
       {/* Main Canvas Viewport - Expanded Full Width */}
       <div ref={containerRef} className="relative flex-1 bg-slate-950 flex items-center justify-center overflow-hidden w-full h-full">
         <canvas ref={canvasRef} className="w-full h-full block" />
+
+        {/* Screen shake handled via Camera.shake() in render loop */}
+
+        {/* Damage Flash Red Screen Overlay */}
+        {hitFlash && (
+          <div className="absolute inset-0 bg-red-600/30 border-4 border-red-500 pointer-events-none z-50 animate-pulse" />
+        )}
+
+        {/* Red Hit Overlay Effect - Full screen red vignette */}
+        {hitOverlayOpacity > 0 && (
+          <div
+            className="absolute inset-0 pointer-events-none z-40"
+            style={{
+              background: `radial-gradient(ellipse at center, transparent 40%, rgba(239, 68, 68, ${hitOverlayOpacity * 0.6}) 100%)`,
+              boxShadow: `inset 0 0 ${200 * hitOverlayOpacity}px ${50 * hitOverlayOpacity}px rgba(239, 68, 68, ${hitOverlayOpacity * 0.8})`,
+              transition: 'opacity 100ms ease-out',
+            }}
+          />
+        )}
+
+        {/* Top-Right Survival & Server System Health HUD */}
+        <div className="absolute top-16 right-4 flex flex-col gap-2 p-3 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl text-xs font-mono z-20 shadow-xl min-w-[230px]">
+          {/* Operator Survival Health Bar */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className={`font-bold flex items-center gap-1 ${playerHp > 70 ? 'text-emerald-400' : playerHp > 30 ? 'text-amber-400' : 'text-red-400'}`}>
+                ❤️ OPERATOR HP:
+              </span>
+              <span className={`font-bold ${playerHp > 70 ? 'text-emerald-300' : playerHp > 30 ? 'text-amber-300' : 'text-red-400 animate-pulse'}`}>
+                {playerHp} / 100 HP
+              </span>
+            </div>
+            <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
+              <div
+                className={`h-full transition-all duration-300 rounded-full ${
+                  playerHp > 70
+                    ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+                    : playerHp > 30
+                    ? 'bg-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.5)]'
+                    : 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.7)] animate-pulse'
+                }`}
+                style={{ width: `${playerHp}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Redis Server System Health Bar */}
+          <div className="border-t border-slate-800 pt-2">
+            <SystemHealth health={worldStateResolver.getSystemHealth()} label="REDIS SERVER HEALTH" />
+          </div>
+        </div>
 
         {/* Quest Objective Banner - prominent top guidance */}
         {!store.objectiveBannerDismissed && (
@@ -858,6 +1180,36 @@ export default function GameCanvas({ engine, isFullscreen, onToggleFullscreen, i
           isOpen={Boolean(openedChestGem)}
           onClose={() => setOpenedChestGem(null)}
           commandGem={openedChestGem}
+        />
+
+        {/* Pause Modal */}
+        <PauseModal
+          isOpen={isManualPaused}
+          onResume={() => setIsManualPaused(false)}
+          onOpenTerminal={() => {
+            if (onToggleTerminalDrawer) {
+              onToggleTerminalDrawer()
+            } else {
+              setTerminalOpen(true)
+            }
+          }}
+          playerHp={playerHp}
+          systemHealth={worldStateResolver.getSystemHealth()}
+        />
+
+        {/* Game Over Modal */}
+        <GameOverModal
+          isOpen={showGameOver}
+          systemHealth={worldStateResolver.getSystemHealth()}
+          onRestart={() => {
+            setPlayerHp(100)
+            setShowGameOver(false)
+            playerRef.current = { gx: 2, gy: 2, targetGx: 2, targetGy: 2, animProgress: 1, facing: 'S' }
+            setPlayerGridPos({ gx: 2, gy: 2 })
+            const safeIso = gridToIso(2, 2)
+            cameraRef.current.moveTo(safeIso.x, safeIso.y)
+            setBattleMessage('⚡ OPERATOR REBOOTED! Hero re-initialized at safe zone (2, 2).')
+          }}
         />
 
         {/* Touch D-Pad Controls for mobile / touch */}
