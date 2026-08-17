@@ -252,22 +252,22 @@ export class Engine3D {
     this.bossGroup = new THREE.Group()
     this.bossGroup.position.set(0, 0, -8)
 
-    let bossColor = 0x10b981 // Green for Memory Goblin
+    let bossColor = 0x10b981 // Green for Memory Goblin / Neon Serpent
     let bossName = 'Memory Goblin'
     this.bossShieldKey = 'goblin:shield'
 
-    if (bossType === 'entropy-spectre') {
+    if (bossType === 'entropy-spectre' || bossType === 'the-tangler') {
       bossColor = 0x8b5cf6
       bossName = 'Entropy Spectre'
-      this.bossShieldKey = 'spectre:barrier'
-    } else if (bossType === 'noise-jammer') {
+      this.bossShieldKey = 'tangle:seed'
+    } else if (bossType === 'noise-jammer' || bossType === 'set-warden') {
       bossColor = 0x06b6d4
       bossName = 'Noise Jammer'
-      this.bossShieldKey = 'jammer:signal'
-    } else if (bossType === 'queue-overlord') {
+      this.bossShieldKey = 'ward:gate'
+    } else if (bossType === 'queue-overlord' || bossType === 'logistics-overseer' || bossType === 'property-magnate') {
       bossColor = 0xef4444
       bossName = 'Queue Overlord'
-      this.bossShieldKey = 'overlord:queue'
+      this.bossShieldKey = 'log:inbox'
     }
 
     // Core Boss Mesh
@@ -774,7 +774,9 @@ export class Engine3D {
   }
 
   updateAimPoint(clientX, clientY) {
+    if (!this.renderer?.domElement?.getBoundingClientRect) return
     const rect = this.renderer.domElement.getBoundingClientRect()
+    if (!rect || !rect.width || !rect.height) return
     this.mousePos.x = ((clientX - rect.left) / rect.width) * 2 - 1
     this.mousePos.y = -((clientY - rect.top) / rect.height) * 2 + 1
 
@@ -798,11 +800,29 @@ export class Engine3D {
   dispose() {
     this.stop()
     window.removeEventListener('resize', this.boundResize)
+
+    if (this.scene) {
+      this.scene.traverse((object) => {
+        if (object.geometry) {
+          object.geometry.dispose()
+        }
+        if (object.material) {
+          if (Array.isArray(object.material)) {
+            object.material.forEach((mat) => mat.dispose())
+          } else {
+            object.material.dispose()
+          }
+        }
+      })
+    }
+
     if (this.renderer && this.renderer.domElement) {
       if (this.renderer.domElement.parentNode) {
         this.renderer.domElement.parentNode.removeChild(this.renderer.domElement)
       }
     }
-    this.renderer.dispose()
+    if (this.renderer && typeof this.renderer.dispose === 'function') {
+      this.renderer.dispose()
+    }
   }
 }

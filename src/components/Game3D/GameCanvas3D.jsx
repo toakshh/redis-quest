@@ -27,6 +27,29 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
   const [battleMessage, setBattleMessage] = useState('3D SHOOTING ARENA ONLINE. DEFEND THE REDIS ENGINE!')
   const [immunityOverlay, setImmunityOverlay] = useState(null)
 
+  // GameStore state & REX interop
+  const currentBoss = store.boss
+  const currentChallenge = currentBoss?.challenges?.[currentBoss?.challengeIndex]
+  const bossName = currentBoss ? currentBoss.name : 'MEMORY GOBLIN'
+  const bossMaxHp = currentBoss ? currentBoss.maxHealth : hudState.bossMaxHp
+  const bossHp = currentBoss ? currentBoss.health : hudState.bossHp
+  const bossShieldActive = currentBoss ? (!currentBoss.defeated && Boolean(currentChallenge)) : hudState.bossShieldActive
+  const bossShieldKey = currentBoss ? (currentChallenge ? currentChallenge.key : 'SHIELD') : hudState.bossShieldKey
+
+  let activeRexHint = battleMessage
+  if (currentBoss?.immunityShield?.hint) {
+    activeRexHint = `🛡️ IMMUNITY: ${currentBoss.immunityShield.hint}`
+  } else if (currentChallenge?.hint) {
+    activeRexHint = `🎯 TASK: ${currentChallenge.task} (Hint: ${currentChallenge.hint})`
+  } else if (store.survivalMode) {
+    const survState = typeof store.getSurvivalState === 'function' ? store.getSurvivalState() : null
+    const seedHint = typeof store.getRexSurvivalHint === 'function' ? store.getRexSurvivalHint(store.survivalMode) : ''
+    activeRexHint = `🌩️ SURVIVAL: ${survState?.currentWave?.name || 'Wave Active'} — ${seedHint}`
+  } else if (store.currentRegion) {
+    const regionHint = typeof store.getRexRegionHint === 'function' ? store.getRexRegionHint(store.currentRegion) : ''
+    if (regionHint) activeRexHint = `🤖 REX: ${regionHint}`
+  }
+
   const setWeapon = (weapon) => {
     activeWeaponRef.current = weapon
     setActiveWeapon(weapon)
@@ -40,7 +63,23 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
     engine3DRef.current = engine3D
 
     engine3D.onStateChange = (newState) => {
-      setHudState(newState)
+      setHudState((prev) => {
+        if (
+          prev.playerHp === newState.playerHp &&
+          prev.systemHealth === newState.systemHealth &&
+          prev.systemPressure === newState.systemPressure &&
+          prev.bossHp === newState.bossHp &&
+          prev.bossMaxHp === newState.bossMaxHp &&
+          prev.bossShieldActive === newState.bossShieldActive &&
+          prev.bossShieldKey === newState.bossShieldKey &&
+          prev.score === newState.score &&
+          prev.apiGateActive === newState.apiGateActive &&
+          prev.apiGateTimer === newState.apiGateTimer
+        ) {
+          return prev
+        }
+        return newState
+      })
     }
 
     engine3D.start()
@@ -101,6 +140,20 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
     }
   }, [])
 
+  useEffect(() => {
+    if (engine3DRef.current && currentBoss?.id) {
+      engine3DRef.current.initBoss(currentBoss.id)
+    }
+  }, [currentBoss?.id])
+
+  const executeCmd = (commandStr) => {
+    if (typeof store.runCommand === 'function') {
+      return store.runCommand(commandStr)
+    } else if (engine && typeof engine.execute === 'function') {
+      return engine.execute(commandStr)
+    }
+  }
+
   // Trigger weapons / commands in 3D Arena & sync with Redis engine & game store
   const triggerWeapon = (commandName) => {
     soundEngine.playSFX('click')
@@ -113,40 +166,47 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
       soundEngine.playSFX('gem')
       engine3D.castSetCommand(targetPos)
       setBattleMessage('⚡ Fired SET Blaster Shot!')
-      if (engine) engine.execute('SET player:action "laser_blast"')
+      executeCmd('SET player:action "laser_blast"')
     } else if (commandName === 'GET') {
       soundEngine.playSFX('shuffle')
       engine3D.castGetCommand(targetPos)
       setBattleMessage('🔍 Activated GET Recon Beam!')
-      if (engine) engine.execute('GET goblin:shield')
+      executeCmd(`GET ${bossShieldKey || 'goblin:shield'}`)
     } else if (commandName === 'DEL') {
       soundEngine.playSFX('shuffle')
       engine3D.castDelCommand(targetPos)
 
-      if (engine3D.bossShieldActive) {
+      if (engine3D.bossShieldActive || bossShieldActive) {
         engine3D.stripBossShield()
-        setBattleMessage('💥 Purged Memory Goblin Shield with DEL!')
+        setBattleMessage(`💥 Purged ${bossName} Shield with DEL!`)
         setImmunityOverlay(null)
-        if (engine) engine.execute('DEL goblin:shield')
-        store.addXp(30)
+        executeCmd(`DEL ${bossShieldKey || 'goblin:shield'}`)
+        if (currentBoss && !currentBoss.defeated && typeof store.attackBoss === 'function') {
+          store.attackBoss(20)
+        } else {
+          store.addXp(30)
+        }
       } else {
         setBattleMessage('⚡ DEL Energy Purge deployed!')
+        if (currentBoss && !currentBoss.defeated && typeof store.attackBoss === 'function') {
+          store.attackBoss(15)
+        }
       }
     } else if (commandName === 'EXPIRE') {
       soundEngine.playSFX('victory')
       engine3D.castExpireCommand()
       setBattleMessage('🛡️ Deployed API Gate Shield Barrier (EXPIRE 8s)!')
-      if (engine) engine.execute('EXPIRE api:shield 8')
+      executeCmd('EXPIRE api:shield 8')
     } else if (commandName === 'LPUSH' || commandName === 'RPUSH') {
       soundEngine.playSFX('gem')
       engine3D.castQueueCommand('LPUSH')
       setBattleMessage('📦 Pushed Job Crate to Conveyor Belt (LPUSH queue:jobs task)!')
-      if (engine) engine.execute('LPUSH queue:jobs task')
+      executeCmd('LPUSH queue:jobs task')
     } else if (commandName === 'LPOP' || commandName === 'RPOP') {
       soundEngine.playSFX('shuffle')
       engine3D.castQueueCommand('LPOP')
       setBattleMessage('📦 Popped Job Crate from Conveyor Belt (LPOP queue:jobs)!')
-      if (engine) engine.execute('LPOP queue:jobs')
+      executeCmd('LPOP queue:jobs')
     }
   }
 
@@ -213,10 +273,10 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
       {/* Top Center: Active Boss Health & Shield Bar */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center p-3 bg-slate-900/90 backdrop-blur border border-red-500/40 rounded-xl shadow-2xl min-w-[340px]">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-bold font-mono tracking-widest text-emerald-400">👾 MEMORY GOBLIN</span>
-          {hudState.bossShieldActive ? (
+          <span className="text-xs font-bold font-mono tracking-widest text-emerald-400">👾 {bossName.toUpperCase()}</span>
+          {bossShieldActive ? (
             <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/50 animate-pulse">
-              🛡️ {hudState.bossShieldKey} ACTIVE
+              🛡️ {bossShieldKey} ACTIVE
             </span>
           ) : (
             <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/50">
@@ -227,10 +287,10 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
         <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700">
           <div
             className="h-full bg-gradient-to-r from-red-600 via-amber-500 to-emerald-400 transition-all duration-300 shadow-[0_0_10px_rgba(239,68,68,0.5)]"
-            style={{ width: `${(hudState.bossHp / hudState.bossMaxHp) * 100}%` }}
+            style={{ width: `${Math.max(0, Math.min(100, (bossHp / bossMaxHp) * 100))}%` }}
           />
         </div>
-        <span className="text-[10px] font-mono text-slate-300 mt-1">HP: {hudState.bossHp} / {hudState.bossMaxHp}</span>
+        <span className="text-[10px] font-mono text-slate-300 mt-1">HP: {bossHp} / {bossMaxHp}</span>
       </div>
 
       {/* REX Hint Panel / Battle Log Banner */}
@@ -239,7 +299,7 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
           <span>🤖 REX TACTICAL ADVICE</span>
         </div>
         <p className="text-xs font-mono text-slate-200 mt-0.5">
-          {battleMessage}
+          {activeRexHint}
         </p>
         {hudState.apiGateActive && (
           <div className="text-[10px] font-mono text-sky-300 font-bold mt-1">
