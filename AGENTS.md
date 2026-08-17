@@ -40,3 +40,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Consequence events handled via `src/systems/consequences/ConsequenceEngine.js`.
 - Dynamic visual world states (API Gate, Cache Corruption, Shield Expiry, Queue Conveyor) resolved via `src/systems/consequences/WorldStateResolver.js`.
 - Rendered in `src/components/GameCanvas.jsx` using `src/game/IsometricRenderer.js`.
+
+## 3D Shooting Mode & Engine
+- Mode selector in `src/components/ModeSelector.jsx` (persisted in `localStorage` key `rq_game_mode`, default 3D).
+- 3D engine in `src/components/Game3D/Engine3D.js` and `GameCanvas3D.jsx` using Three.js. Interoperates 1:1 with `gameStore.js`.
