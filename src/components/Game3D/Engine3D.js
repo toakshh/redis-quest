@@ -378,7 +378,11 @@ export class Engine3D {
     beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
 
     this.scene.add(beam)
-    setTimeout(() => this.scene.remove(beam), 400)
+    setTimeout(() => {
+      this.scene.remove(beam)
+      beam.geometry?.dispose()
+      beam.material?.dispose()
+    }, 400)
 
     this.createParticles(targetPos, 0xf59e0b, 10)
   }
@@ -440,6 +444,8 @@ export class Engine3D {
         if (popped) {
           this.createParticles(popped.position, 0xf59e0b, 15)
           this.scene.remove(popped)
+          popped.geometry?.dispose()
+          popped.material?.dispose()
         }
       }
     }
@@ -621,6 +627,8 @@ export class Engine3D {
         if (distToPlayer < 4.0) {
           this.createParticles(p.mesh.position, 0x38bdf8, 8)
           this.scene.remove(p.mesh)
+          p.mesh.geometry?.dispose()
+          p.mesh.material?.dispose()
           this.impProjectiles.splice(i, 1)
           continue
         }
@@ -633,12 +641,16 @@ export class Engine3D {
         this.systemPressure = Math.min(100, this.systemPressure + 5)
         this.createParticles(p.mesh.position, 0xef4444, 12)
         this.scene.remove(p.mesh)
+        p.mesh.geometry?.dispose()
+        p.mesh.material?.dispose()
         this.impProjectiles.splice(i, 1)
         continue
       }
 
       if (p.life <= 0) {
         this.scene.remove(p.mesh)
+        p.mesh.geometry?.dispose()
+        p.mesh.material?.dispose()
         this.impProjectiles.splice(i, 1)
       }
     }
@@ -664,6 +676,8 @@ export class Engine3D {
           }
           this.createParticles(p.mesh.position, p.type === 'DEL' ? 0x10b981 : 0x22d3ee, 15)
           this.scene.remove(p.mesh)
+          p.mesh.geometry?.dispose()
+          p.mesh.material?.dispose()
           this.projectiles.splice(i, 1)
           continue
         }
@@ -679,6 +693,8 @@ export class Engine3D {
           if (imp.hp <= 0) {
             this.createParticles(imp.mesh.position, 0xef4444, 20)
             this.scene.remove(imp.mesh)
+            imp.mesh.geometry?.dispose()
+            imp.mesh.material?.dispose()
             this.imps.splice(j, 1)
             this.score += 50
             this.systemPressure = Math.max(0, this.systemPressure - 5)
@@ -690,12 +706,16 @@ export class Engine3D {
 
       if (impHit) {
         this.scene.remove(p.mesh)
+        p.mesh.geometry?.dispose()
+        p.mesh.material?.dispose()
         this.projectiles.splice(i, 1)
         continue
       }
 
       if (p.life <= 0) {
         this.scene.remove(p.mesh)
+        p.mesh.geometry?.dispose()
+        p.mesh.material?.dispose()
         this.projectiles.splice(i, 1)
       }
     }
@@ -709,6 +729,8 @@ export class Engine3D {
 
       if (p.life <= 0) {
         this.scene.remove(p.mesh)
+        p.mesh.geometry?.dispose()
+        p.mesh.material?.dispose()
         this.particles.splice(i, 1)
       }
     }
@@ -775,7 +797,9 @@ export class Engine3D {
     this.stop()
     window.removeEventListener('resize', this.boundResize)
     if (this.renderer && this.renderer.domElement) {
-      this.container.removeChild(this.renderer.domElement)
+      if (this.renderer.domElement.parentNode) {
+        this.renderer.domElement.parentNode.removeChild(this.renderer.domElement)
+      }
     }
     this.renderer.dispose()
   }

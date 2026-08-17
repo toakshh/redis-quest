@@ -23,8 +23,14 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
   })
 
   const [activeWeapon, setActiveWeapon] = useState('SET')
+  const activeWeaponRef = useRef('SET')
   const [battleMessage, setBattleMessage] = useState('3D SHOOTING ARENA ONLINE. DEFEND THE REDIS ENGINE!')
   const [immunityOverlay, setImmunityOverlay] = useState(null)
+
+  const setWeapon = (weapon) => {
+    activeWeaponRef.current = weapon
+    setActiveWeapon(weapon)
+  }
 
   // Initialize Three.js 3D Engine
   useEffect(() => {
@@ -53,7 +59,7 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
       if (isInput) return
 
       if (e.button === 0 && engine3DRef.current) { // Left click
-        triggerWeapon(activeWeapon)
+        triggerWeapon(activeWeaponRef.current)
       }
     }
 
@@ -68,11 +74,11 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
       }
 
       // Hotkey weapon selection 1-5
-      if (e.key === '1') setActiveWeapon('SET')
-      if (e.key === '2') setActiveWeapon('GET')
-      if (e.key === '3') setActiveWeapon('DEL')
-      if (e.key === '4') setActiveWeapon('EXPIRE')
-      if (e.key === '5') setActiveWeapon('LPUSH')
+      if (e.key === '1') setWeapon('SET')
+      if (e.key === '2') setWeapon('GET')
+      if (e.key === '3') setWeapon('DEL')
+      if (e.key === '4') setWeapon('EXPIRE')
+      if (e.key === '5') setWeapon('LPUSH')
     }
 
     const handleKeyUp = (e) => {
@@ -117,7 +123,7 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
       soundEngine.playSFX('shuffle')
       engine3D.castDelCommand(targetPos)
 
-      if (hudState.bossShieldActive) {
+      if (engine3D.bossShieldActive) {
         engine3D.stripBossShield()
         setBattleMessage('💥 Purged Memory Goblin Shield with DEL!')
         setImmunityOverlay(null)
@@ -257,7 +263,7 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
               key={item.key}
               type="button"
               onClick={() => {
-                setActiveWeapon(item.name)
+                setWeapon(item.name)
                 triggerWeapon(item.name)
               }}
               className={`flex flex-col items-center px-3.5 py-2 rounded-lg border transition-all duration-200 ${
