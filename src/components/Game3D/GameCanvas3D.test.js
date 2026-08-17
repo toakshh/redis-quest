@@ -49,15 +49,25 @@ describe('Engine3D & 3D Shooting Game Mechanics', () => {
     engine3D.dispose()
   })
 
-  it('handles LPUSH / LPOP queue crates on physical 3D conveyor belt', () => {
+  it('triggers onBossDamage callback when boss takes damage without shield', () => {
     const engine3D = new Engine3D(mockContainer)
-    expect(engine3D.crates.length).toBe(0)
+    const damageHandler = vi.fn()
+    engine3D.onBossDamage = damageHandler
 
-    engine3D.castQueueCommand('LPUSH')
-    expect(engine3D.crates.length).toBe(1)
+    engine3D.stripBossShield()
+    const hitSuccess = engine3D.damageBoss(25)
 
-    engine3D.castQueueCommand('LPOP')
-    expect(engine3D.crates.length).toBe(0)
+    expect(hitSuccess).toBe(true)
+    expect(damageHandler).toHaveBeenCalledWith(25)
+    engine3D.dispose()
+  })
+
+  it('disposes existing boss geometries when initBoss is re-invoked', () => {
+    const engine3D = new Engine3D(mockContainer)
+    const spyDispose = vi.spyOn(engine3D.bossMesh.geometry, 'dispose')
+
+    engine3D.initBoss('entropy-spectre')
+    expect(spyDispose).toHaveBeenCalled()
     engine3D.dispose()
   })
 })

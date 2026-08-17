@@ -84,6 +84,8 @@ export class Engine3D {
 
     // Callbacks
     this.onStateChange = null
+    this.onBossDamage = null
+    this.onBossShieldStrip = null
 
     // Initialize world objects
     this.initLights()
@@ -245,6 +247,16 @@ export class Engine3D {
 
   initBoss(bossType = 'memory-goblin') {
     if (this.bossGroup) {
+      this.bossGroup.traverse((object) => {
+        if (object.geometry) object.geometry.dispose()
+        if (object.material) {
+          if (Array.isArray(object.material)) {
+            object.material.forEach((mat) => mat.dispose())
+          } else {
+            object.material.dispose()
+          }
+        }
+      })
       this.scene.remove(this.bossGroup)
     }
 
@@ -458,6 +470,24 @@ export class Engine3D {
       if (this.bossGroup) {
         this.createParticles(this.bossGroup.position.clone().add(new THREE.Vector3(0, 2, 0)), 0x10b981, 30)
       }
+      if (typeof this.onBossShieldStrip === 'function') {
+        this.onBossShieldStrip()
+      }
+    }
+  }
+
+  syncBossState({ hp, maxHp, shieldActive, shieldKey, defeated } = {}) {
+    if (typeof hp === 'number') this.bossHp = hp
+    if (typeof maxHp === 'number') this.bossMaxHp = maxHp
+    if (typeof shieldActive === 'boolean') {
+      this.bossShieldActive = shieldActive
+      if (this.bossShieldMesh) {
+        this.bossShieldMesh.visible = shieldActive
+      }
+    }
+    if (shieldKey) this.bossShieldKey = shieldKey
+    if (this.bossMesh) {
+      this.bossMesh.visible = !defeated && (typeof hp === 'number' ? hp > 0 : this.bossHp > 0)
     }
   }
 
@@ -477,6 +507,10 @@ export class Engine3D {
 
     if (this.bossHp === 0 && this.bossMesh) {
       this.bossMesh.visible = false
+    }
+
+    if (typeof this.onBossDamage === 'function') {
+      this.onBossDamage(amount)
     }
     return true
   }

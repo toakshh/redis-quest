@@ -62,6 +62,23 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
     const engine3D = new Engine3D(containerRef.current)
     engine3DRef.current = engine3D
 
+    engine3D.onBossDamage = (amount) => {
+      const currentStore = useGameStore.getState()
+      if (currentStore.boss && !currentStore.boss.defeated && typeof currentStore.attackBoss === 'function') {
+        currentStore.attackBoss(amount)
+      }
+    }
+
+    engine3D.onBossShieldStrip = () => {
+      const currentStore = useGameStore.getState()
+      const b = currentStore.boss
+      const c = b?.challenges?.[b?.challengeIndex]
+      const shieldKey = c ? c.key : 'goblin:shield'
+      if (typeof currentStore.runCommand === 'function') {
+        currentStore.runCommand(`DEL ${shieldKey}`)
+      }
+    }
+
     engine3D.onStateChange = (newState) => {
       setHudState((prev) => {
         if (
@@ -141,10 +158,19 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
   }, [])
 
   useEffect(() => {
-    if (engine3DRef.current && currentBoss?.id) {
-      engine3DRef.current.initBoss(currentBoss.id)
+    if (engine3DRef.current) {
+      if (currentBoss?.id) {
+        engine3DRef.current.initBoss(currentBoss.id)
+      }
+      engine3DRef.current.syncBossState({
+        hp: currentBoss ? currentBoss.health : hudState.bossHp,
+        maxHp: currentBoss ? currentBoss.maxHealth : hudState.bossMaxHp,
+        shieldActive: currentBoss ? (!currentBoss.defeated && Boolean(currentChallenge)) : hudState.bossShieldActive,
+        shieldKey: currentBoss ? (currentChallenge ? currentChallenge.key : 'SHIELD') : hudState.bossShieldKey,
+        defeated: currentBoss ? currentBoss.defeated : false,
+      })
     }
-  }, [currentBoss?.id])
+  }, [currentBoss?.id, currentBoss?.health, currentBoss?.maxHealth, currentBoss?.defeated, currentChallenge?.key])
 
   const executeCmd = (commandStr) => {
     if (typeof store.runCommand === 'function') {
