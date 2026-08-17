@@ -12,8 +12,6 @@ import SettingsPanel from './components/SettingsPanel.jsx'
 import RexPanel from './components/RexPanel.jsx'
 import JuiceOverlay from './components/JuiceOverlay.jsx'
 import GameCanvas from './components/GameCanvas.jsx'
-import GameCanvas3D from './components/Game3D/GameCanvas3D.jsx'
-import { getSavedGameMode } from './components/ModeSelector.jsx'
 import InventoryModal from './components/InventoryModal.jsx'
 import OnboardingModal, { hasCompletedOnboarding } from './components/OnboardingModal.jsx'
 import UITourModal from './components/UITourModal.jsx'
@@ -49,7 +47,6 @@ function getTabIcon(id) {
 }
 
 export default function App() {
-  const [gameMode, setGameMode] = useState(getSavedGameMode())
   const [tab, setTab] = useState('world')
   const [rexTab, setRexTab] = useState(false)
   const [terminalDrawerOpen, setTerminalDrawerOpen] = useState(false)
@@ -128,8 +125,6 @@ export default function App() {
           onOpenTour={() => setIsTourOpen(true)}
           isFullscreen={isFullscreen}
           onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
-          gameMode={gameMode}
-          onGameModeChange={setGameMode}
         />
       )}
 
@@ -227,25 +222,15 @@ export default function App() {
           </aside>
         )}
 
-        {/* Center Primary Center View: GameCanvas (2D) or GameCanvas3D (3D) */}
+        {/* Center Primary Center View: GameCanvas (2D) */}
         <main className="flex min-h-0 min-w-0 flex-1 flex-col relative bg-slate-950">
-          {gameMode === '3d' ? (
-            <GameCanvas3D
-              engine={engine}
-              isFullscreen={isFullscreen}
-              onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
-              isTerminalDrawerOpen={terminalDrawerOpen}
-              onToggleTerminalDrawer={() => setTerminalDrawerOpen(!terminalDrawerOpen)}
-            />
-          ) : (
-            <GameCanvas
-              engine={engine}
-              isFullscreen={isFullscreen}
-              onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
-              isTerminalDrawerOpen={terminalDrawerOpen}
-              onToggleTerminalDrawer={() => setTerminalDrawerOpen(!terminalDrawerOpen)}
-            />
-          )}
+          <GameCanvas
+            engine={engine}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+            isTerminalDrawerOpen={terminalDrawerOpen}
+            onToggleTerminalDrawer={() => setTerminalDrawerOpen(!terminalDrawerOpen)}
+          />
         </main>
 
         {/* Expandable Terminal Side Drawer (Right Side) */}

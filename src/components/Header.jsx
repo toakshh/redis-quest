@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useGameStore, levelInfo } from '../store/gameStore.js'
 import { formatBytes } from '../engine/datatypes/memory.js'
-import ModeSelector from './ModeSelector.jsx'
 
 // Compact stat tile used for KEYS / MEM readouts. `value` is the emphasized
 // figure, `label` the dimmed caption.
@@ -32,7 +31,7 @@ function Meter({ pct, className }) {
 // Top app bar: brand, player level/XP, keys in the active db, and a live
 // used_memory gauge. Live-updates on every engine mutation (change/expired)
 // so keys + memory always reflect what the terminal just did.
-export default function Header({ engine, onOpenTutorial, onOpenTour, isFullscreen, onToggleFullscreen, gameMode, onGameModeChange, className = '' }) {
+export default function Header({ engine, onOpenTutorial, onOpenTour, isFullscreen, onToggleFullscreen, className = '' }) {
   const xp = useGameStore((s) => s.xp)
   const skillPoints = useGameStore((s) => s.skillPoints)
   const unlockedSkills = useGameStore((s) => s.unlockedSkills)
@@ -82,7 +81,6 @@ export default function Header({ engine, onOpenTutorial, onOpenTour, isFullscree
             </p>
           </div>
         </div>
-        <ModeSelector currentMode={gameMode} onModeChange={onGameModeChange} />
       </div>
 
       {/* live stats */}
