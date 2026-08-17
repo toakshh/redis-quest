@@ -384,7 +384,7 @@ export class Engine3D {
       beam.material?.dispose()
     }, 400)
 
-    this.createParticles(targetPos, 0xf59e0b, 10)
+    this.createParticles(targetVec, 0xf59e0b, 10)
   }
 
   castDelCommand(targetPos) {
@@ -506,12 +506,14 @@ export class Engine3D {
   }
 
   createParticles(pos, colorHex, count = 10) {
+    if (!pos) return
+    const posVec = pos.isVector3 ? pos : new THREE.Vector3(pos.x || 0, pos.y || 0, pos.z || 0)
     for (let i = 0; i < count; i++) {
       const pGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1)
       const pMat = new THREE.MeshBasicMaterial({ color: colorHex })
       const p = new THREE.Mesh(pGeo, pMat)
 
-      p.position.copy(pos)
+      p.position.copy(posVec)
       const vel = new THREE.Vector3(
         (Math.random() - 0.5) * 8,
         (Math.random() - 0.5) * 8 + 2,

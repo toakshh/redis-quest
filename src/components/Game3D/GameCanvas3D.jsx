@@ -54,11 +54,11 @@ export default function GameCanvas3D({ engine, isFullscreen, onToggleFullscreen,
 
     // Mouse click shooting
     const handleMouseDown = (e) => {
-      const activeEl = document.activeElement
-      const isInput = activeEl && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(activeEl.tagName)
-      if (isInput) return
+      if (e.button !== 0) return
+      if (!containerRef.current?.contains(e.target)) return
+      if (e.target && typeof e.target.closest === 'function' && e.target.closest('button, input, textarea, select, a, [role="button"]')) return
 
-      if (e.button === 0 && engine3DRef.current) { // Left click
+      if (engine3DRef.current) {
         triggerWeapon(activeWeaponRef.current)
       }
     }
