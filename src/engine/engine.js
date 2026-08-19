@@ -5,6 +5,7 @@ import { totalMemoryBytes, MEMORY_CONSTANTS } from './datatypes/memory.js'
 import { createRng } from './rng.js'
 import { runEvictionPass } from './eviction.js'
 import { estimateCommandCost, PRE_SIZE_COMMANDS, capturePreSize } from './latency.js'
+import { RedisStream, StreamId, ConsumerGroup } from './datatypes/Stream.js'
 
 // How many executed commands we keep for time-travel debugging.
 export const HISTORY_LIMIT = 500
@@ -525,13 +526,79 @@ export class MockRedisEngine {
 function serializeEntryValue(value) {
   if (value instanceof Map) return { __t: 'map', v: [...value] }
   if (value instanceof Set) return { __t: 'set', v: [...value] }
+  if (value instanceof RedisStream) return { __t: 'stream', v: serializeStream(value) }
   return value
 }
 
 function deserializeEntryValue(value) {
   if (value && typeof value === 'object' && value.__t === 'map') return new Map(value.v)
   if (value && typeof value === 'object' && value.__t === 'set') return new Set(value.v)
+  if (value && typeof value === 'object' && value.__t === 'stream') return deserializeStream(value.v)
   return value
+}
+
+// A RedisStream holds StreamId instances (not plain strings) in its entries,
+// lastId/maxDeletedId, and every group's lastDeliveredId/PEL — all of that
+// gets flattened to id strings here and reparsed with StreamId.parse() on
+// the way back in, exactly like Map/Set above but one level deeper.
+function serializeStream(stream) {
+  return {
+    entries: stream.entries.map((e) => ({ id: e.id.toString(), fields: [...e.fields] })),
+    lastId: stream.lastId.toString(),
+    maxDeletedId: stream.maxDeletedId.toString(),
+    entriesAdded: stream.entriesAdded,
+    groups: [...stream.groups.entries()].map(([name, group]) => [
+      name,
+      {
+        lastDeliveredId: group.lastDeliveredId.toString(),
+        consumers: [...group.consumers.entries()].map(([cname, c]) => [
+          cname,
+          { name: c.name, seenTime: c.seenTime, pending: [...c.pending] },
+        ]),
+        pel: [...group.pel.entries()].map(([idStr, p]) => [
+          idStr,
+          {
+            id: p.id.toString(),
+            consumer: p.consumer,
+            deliveryTime: p.deliveryTime,
+            deliveryCount: p.deliveryCount,
+          },
+        ]),
+      },
+    ]),
+  }
+}
+
+function deserializeStream(v) {
+  const stream = new RedisStream()
+  stream.entries = v.entries.map((e) => ({ id: StreamId.parse(e.id), fields: new Map(e.fields) }))
+  stream.lastId = StreamId.parse(v.lastId)
+  stream.maxDeletedId = StreamId.parse(v.maxDeletedId)
+  stream.entriesAdded = v.entriesAdded
+  stream.groups = new Map(
+    v.groups.map(([name, g]) => {
+      const group = new ConsumerGroup(name, StreamId.parse(g.lastDeliveredId))
+      group.consumers = new Map(
+        g.consumers.map(([cname, c]) => [
+          cname,
+          { name: c.name, seenTime: c.seenTime, pending: new Set(c.pending) },
+        ])
+      )
+      group.pel = new Map(
+        g.pel.map(([idStr, p]) => [
+          idStr,
+          {
+            id: StreamId.parse(p.id),
+            consumer: p.consumer,
+            deliveryTime: p.deliveryTime,
+            deliveryCount: p.deliveryCount,
+          },
+        ])
+      )
+      return [name, group]
+    })
+  )
+  return stream
 }
 
 const TRANSACTION_CONTROL = new Set(['MULTI', 'EXEC', 'DISCARD', 'WATCH', 'UNWATCH', 'RESET'])
