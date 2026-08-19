@@ -40,3 +40,14 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Consequence events handled via `src/systems/consequences/ConsequenceEngine.js`.
 - Dynamic visual world states (API Gate, Cache Corruption, Shield Expiry, Queue Conveyor) resolved via `src/systems/consequences/WorldStateResolver.js`.
 - Rendered in `src/components/GameCanvas.jsx` using `src/game/IsometricRenderer.js`.
+
+## Streams, Eviction & Latency
+- Streams in `src/engine/datatypes/Stream.js` (`StreamId`, `RedisStream`, `ConsumerGroup`) and `src/engine/commands/streams.js`.
+- Eviction policies in `src/engine/eviction.js`; `engine.maxmemoryPolicy` drives `engine.maybeEvict()`, called once per command.
+- Per-command cost model in `src/engine/latency.js`; read latency from `engine.lastCommandCostMs` or the `command` event's `costMs`.
+- Real hit/miss stats via `engine._readIntent` (see `engine.hitRatio()`); blocking commands (`BLPOP`/`BZPOPMIN`) return `{ type: 'blocked', resumeOn, timeoutAt }`, not nil.
+
+## 3D Mode (Protocol Zero)
+- Lives entirely under `src/game3d/`, lazy-loaded from `App.jsx` via `React.lazy`. Never shares state with the 2D game — see `claude-plan-pro.md` section 5 and `pro-instruct.md` Laws L3-L6.
+- Owns its own engine/store/save namespace: `src/game3d/bootstrap.js` (`createRuntime()`), `src/game3d/state/game3dStore.js`, `src/game3d/state/persistence3d.js` (`redis-quest:3d:` prefix).
+- Build sequence and every task's exact contract: `pro-instruct.md`. Progress tracked in `BUILD-STATUS.md`.
