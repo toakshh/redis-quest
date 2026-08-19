@@ -4,7 +4,7 @@ Format: <task-id>  <STATUS>  <date>  <commit>
 STATUS is one of: TODO | IN-PROG | DONE | BLOCKED
 
 T-001  DONE      2026-08-20
-T-002  TODO
+T-002  DONE      2026-08-20
 T-003  TODO
 T-004  TODO
 T-005  TODO
