@@ -64,7 +64,17 @@ export class MockRedisEngine {
       commandsPerMinute: 0,
       startedAt: this.now(),
       _lastCommandTime: this.now(),
+      keyspaceHits: 0,
+      keyspaceMisses: 0,
     }
+
+    // Ring of { t, hit } records for hitRatio()'s windowed lookback. Trimmed
+    // to its last 2000 entries in _recordCommand so it never grows unbounded.
+    this._hitWindow = []
+    // True only while a READ_INTENT_COMMANDS handler is executing — _get()
+    // consults this so a write's internal lookups (e.g. SET checking for an
+    // existing key) never count as a cache hit/miss.
+    this._readIntent = false
 
     // pub/sub bus (per-db channels share one bus in our mock)
     this.subscribers = new Map() // channel -> Set of connection ids
@@ -100,18 +110,45 @@ export class MockRedisEngine {
   }
 
   // Live entry for a key, applying lazy expiry. Returns null if missing/expired.
+  // Both the missing-key and the just-expired paths count as a miss.
   _get(key) {
     const entry = this.store.get(key)
-    if (!entry) return null
+    if (!entry) {
+      if (this._readIntent) this._recordHit(false)
+      return null
+    }
     if (entry.expiresAt !== null && entry.expiresAt <= this.now()) {
       this.store.delete(key)
       this.stats.keysExpired++
       this._cache.dirty = true
       this.emit('expired', { keys: [key] })
       this.emit('change')
+      if (this._readIntent) this._recordHit(false)
       return null
     }
+    if (this._readIntent) this._recordHit(true)
     return entry
+  }
+
+  _recordHit(hit) {
+    this._hitWindow.push({ t: this.now(), hit })
+    if (hit) this.stats.keyspaceHits++
+    else this.stats.keyspaceMisses++
+  }
+
+  // Windowed hit ratio over the last windowMs of read-intent lookups.
+  // Returns 1 (fully "healthy") when there is no data yet, so a fresh
+  // engine doesn't read as a cache disaster before anything has happened.
+  hitRatio(windowMs = 30000) {
+    const cutoff = this.now() - windowMs
+    let hits = 0
+    let total = 0
+    for (let i = this._hitWindow.length - 1; i >= 0; i--) {
+      if (this._hitWindow[i].t < cutoff) break
+      total++
+      if (this._hitWindow[i].hit) hits++
+    }
+    return total === 0 ? 1 : hits / total
   }
 
   // Create or fetch an entry, ready for mutation. If it exists it must be
@@ -224,6 +261,10 @@ export class MockRedisEngine {
     this.stats.commandsPerMinute = this.stats.opsPerSecond * 60
     this.stats.totalCommands++
     this.stats.commandsByType[canonicalName] = (this.stats.commandsByType[canonicalName] || 0) + 1
+
+    if (this._hitWindow.length > 2000) {
+      this._hitWindow.splice(0, this._hitWindow.length - 2000)
+    }
   }
 
   // ---- pub/sub ---------------------------------------------------------
@@ -344,6 +385,7 @@ export class MockRedisEngine {
 
     this._recordCommand(canon)
 
+    this._readIntent = READ_INTENT_COMMANDS.has(canon)
     let reply
     try {
       reply = command(this, args)
@@ -353,6 +395,8 @@ export class MockRedisEngine {
       // eslint-disable-next-line no-console
       console.error('Engine handler error for', args[0], err)
       reply = errorReply(`ERR internal error: ${err.message}`)
+    } finally {
+      this._readIntent = false
     }
     if (reply && reply.type === 'error') this.stats.totalErrors++
 
@@ -453,6 +497,16 @@ function deserializeEntryValue(value) {
 }
 
 const TRANSACTION_CONTROL = new Set(['MULTI', 'EXEC', 'DISCARD', 'WATCH', 'UNWATCH', 'RESET'])
+
+// Commands whose _get() lookups count toward the keyspace hit/miss ratio.
+// A write (SET, DEL, ...) internally checking whether a key exists must
+// never count as a cache hit or miss — only these read-shaped commands do.
+const READ_INTENT_COMMANDS = new Set([
+  'GET', 'MGET', 'GETRANGE', 'STRLEN', 'HGET', 'HMGET', 'HGETALL', 'HKEYS', 'HVALS', 'HLEN',
+  'HEXISTS', 'LRANGE', 'LINDEX', 'LLEN', 'SMEMBERS', 'SISMEMBER', 'SCARD', 'ZSCORE', 'ZRANK',
+  'ZREVRANK', 'ZRANGE', 'ZREVRANGE', 'ZCARD', 'EXISTS', 'TYPE', 'TTL', 'PTTL', 'XRANGE',
+  'XREVRANGE', 'XLEN', 'XREAD', 'XREADGROUP',
+])
 
 // Redis arity: positive = exact arg count (including command name),
 // negative = minimum count. Returns an error reply or null.
