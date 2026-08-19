@@ -4,6 +4,7 @@ import { unknownCommand, errorReply, simpleReply, wrongArity } from './reply.js'
 import { totalMemoryBytes, MEMORY_CONSTANTS } from './datatypes/memory.js'
 import { createRng } from './rng.js'
 import { runEvictionPass } from './eviction.js'
+import { estimateCommandCost, PRE_SIZE_COMMANDS, capturePreSize } from './latency.js'
 
 // How many executed commands we keep for time-travel debugging.
 export const HISTORY_LIMIT = 500
@@ -73,6 +74,11 @@ export class MockRedisEngine {
     // 'volatile-random' | 'volatile-ttl'. See eviction.js.
     this.maxmemoryPolicy = 'noeviction'
     this.stats.keysEvicted = 0
+
+    // Estimated cost (ms) of the most recently executed command. See
+    // latency.js — this is what lets the sim turn an expensive DEL into a
+    // real, felt frame stall while UNLINK stays cheap.
+    this.lastCommandCostMs = 0
 
     // Ring of { t, hit } records for hitRatio()'s windowed lookback. Trimmed
     // to its last 2000 entries in _recordCommand so it never grows unbounded.
@@ -407,6 +413,11 @@ export class MockRedisEngine {
 
     this._recordCommand(canon)
 
+    // Destructive commands (DEL/UNLINK/FLUSHDB/FLUSHALL) must be sized
+    // BEFORE the handler runs — by the time the cost estimate is computed
+    // below, the handler has already removed what it needs to measure.
+    const preSize = PRE_SIZE_COMMANDS.has(canon) ? capturePreSize(this, canon, args) : null
+
     this._readIntent = READ_INTENT_COMMANDS.has(canon)
     let reply
     try {
@@ -423,8 +434,10 @@ export class MockRedisEngine {
     if (reply && reply.type === 'error') this.stats.totalErrors++
     if (!reply || reply.type !== 'error') this.maybeEvict()
 
+    this.lastCommandCostMs = estimateCommandCost(this, canon, args, reply, preSize)
+
     if (!this._silent) {
-      this.emit('command', { name: canon, args: tokens, reply })
+      this.emit('command', { name: canon, args: tokens, reply, costMs: this.lastCommandCostMs })
     }
 
     return reply
