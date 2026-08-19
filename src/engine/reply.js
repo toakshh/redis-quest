@@ -7,6 +7,10 @@
 //   nil      '$-1'            -> value: null
 //   array    '*2\r\n...'      -> value: array of RedisReply (may nest)
 //   status   (custom, for PING in pub/sub / scripts) -> value: string
+//   blocked  (custom, no RESP equivalent — BLPOP/BRPOP/BZPOPMIN/BZPOPMAX/
+//            XREAD BLOCK found no data) -> value: null,
+//            resumeOn: string[] (the keys that would unblock this),
+//            timeoutAt: absolute ms, or null to mean "block forever"
 
 export function okReply() {
   return { type: 'simple', value: 'OK' }
@@ -30,6 +34,10 @@ export function bulkReply(value) {
 
 export function nilReply() {
   return { type: 'nil', value: null }
+}
+
+export function blockedReply(resumeOn, timeoutAt) {
+  return { type: 'blocked', value: null, resumeOn, timeoutAt }
 }
 
 export function arrayReply(items) {
