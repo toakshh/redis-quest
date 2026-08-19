@@ -16,6 +16,7 @@ import * as acl from './commands/acl.js'
 import * as cluster from './commands/cluster.js'
 import * as debug from './commands/debug.js'
 import * as geo from './commands/geo.js'
+import * as streams from './commands/streams.js'
 
 export const registry = new Map()
 
@@ -38,7 +39,7 @@ export function registerModule(module, opts = {}) {
   }
 }
 
-const groups = [strings, keys, hashes, lists, sets, zsets, pubsub, transactions, scripting, server, acl, cluster, debug, geo]
+const groups = [strings, keys, hashes, lists, sets, zsets, pubsub, transactions, scripting, server, acl, cluster, debug, geo, streams]
 for (const group of groups) {
   for (const [name, entry] of Object.entries(group)) {
     if (entry && typeof entry === 'function') {
