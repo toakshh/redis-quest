@@ -3,6 +3,7 @@ import { registry } from './registry.js'
 import { unknownCommand, errorReply, simpleReply, wrongArity } from './reply.js'
 import { totalMemoryBytes, MEMORY_CONSTANTS } from './datatypes/memory.js'
 import { createRng } from './rng.js'
+import { runEvictionPass } from './eviction.js'
 
 // How many executed commands we keep for time-travel debugging.
 export const HISTORY_LIMIT = 500
@@ -67,6 +68,11 @@ export class MockRedisEngine {
       keyspaceHits: 0,
       keyspaceMisses: 0,
     }
+
+    // 'noeviction' | 'allkeys-lru' | 'allkeys-random' | 'volatile-lru' |
+    // 'volatile-random' | 'volatile-ttl'. See eviction.js.
+    this.maxmemoryPolicy = 'noeviction'
+    this.stats.keysEvicted = 0
 
     // Ring of { t, hit } records for hitRatio()'s windowed lookback. Trimmed
     // to its last 2000 entries in _recordCommand so it never grows unbounded.
@@ -149,6 +155,22 @@ export class MockRedisEngine {
       if (this._hitWindow[i].hit) hits++
     }
     return total === 0 ? 1 : hits / total
+  }
+
+  // Runs an eviction pass if we're over maxmemoryPolicy's limit. A no-op
+  // under 'noeviction' (memory is simply allowed to exceed the limit — see
+  // OOM handling in CONFIG). Called once per executed command, after the
+  // handler runs, so the *next* command's arriving key finds room.
+  maybeEvict() {
+    if (this.maxmemoryPolicy === 'noeviction') return null
+    if (this.memoryBytes <= this.memoryLimit) return null
+    const result = runEvictionPass(this, this.maxmemoryPolicy)
+    if (result.keys.length > 0) {
+      this.stats.keysEvicted += result.keys.length
+      this.emit('evicted', result)
+      this.emit('change')
+    }
+    return result
   }
 
   // Create or fetch an entry, ready for mutation. If it exists it must be
@@ -399,6 +421,7 @@ export class MockRedisEngine {
       this._readIntent = false
     }
     if (reply && reply.type === 'error') this.stats.totalErrors++
+    if (!reply || reply.type !== 'error') this.maybeEvict()
 
     if (!this._silent) {
       this.emit('command', { name: canon, args: tokens, reply })
@@ -451,6 +474,7 @@ export class MockRedisEngine {
         : [],
       connectionId: this.connectionId,
       memoryLimit: this.memoryLimit,
+      maxmemoryPolicy: this.maxmemoryPolicy,
     }
   }
 
@@ -479,6 +503,7 @@ export class MockRedisEngine {
     this.scriptCache = new Map(snap.scriptCache ?? [])
     this.subscribers = new Map((snap.subscribers ?? []).map(([ch, conns]) => [ch, new Set(conns)]))
     if (typeof snap.memoryLimit === 'number') this.memoryLimit = snap.memoryLimit
+    if (typeof snap.maxmemoryPolicy === 'string') this.maxmemoryPolicy = snap.maxmemoryPolicy
     this._cache = { memoryBytes: 0, dirty: true }
     return this
   }
