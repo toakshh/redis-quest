@@ -71,6 +71,25 @@ export const SET = cmd({
   return okReply()
 })
 
+export const SETNX = cmd({
+  arity: 3,
+  syntax: 'SETNX key value',
+  summary: 'Set key to value only if it does not already exist. Legacy equivalent of SET key value NX.',
+  group: 'strings',
+  examples: ['SETNX lock:order:9 held'],
+})((engine, args) => {
+  const [key, value] = args.slice(1)
+  if (engine._get(key) !== null) return integerReply(0)
+
+  const { entry, wrongType: wt } = engine._entryForWrite(key, 'string')
+  if (wt) return wrongType()
+  entry.value = String(value)
+  engine._clearTtl(entry)
+  engine._bump(key, entry)
+  engine.emit('change')
+  return integerReply(1)
+})
+
 export const GET = cmd({
   arity: 2,
   syntax: 'GET key',
