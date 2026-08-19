@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { createEngine } from './engine/engine.js'
 import { useGameStore } from './store/gameStore.js'
+import ModeLauncher from './components/ModeLauncher.jsx'
 import Header from './components/Header.jsx'
 import Terminal from './components/Terminal.jsx'
 import MemoryInspector from './components/MemoryInspector.jsx'
@@ -17,6 +18,11 @@ import OnboardingModal, { hasCompletedOnboarding } from './components/Onboarding
 import UITourModal from './components/UITourModal.jsx'
 import WelcomeOverlay from './components/WelcomeOverlay.jsx'
 import { soundEngine } from './audio/SoundEngine.js'
+
+// Lazy: the 3D mode's bundle (three.js and everything under game3d/) never
+// reaches a player who stays in the 2D game. See ModeLauncher.jsx and the
+// bundle-split guard test in src/game3d/__tests__/bundleSplit.test.js.
+const Game3DRoot = lazy(() => import('./game3d/index.js'))
 
 // One shared engine for the whole app: the terminal executes through it, the
 // store inspects it for challenge/achievement validation, and the header +
@@ -55,6 +61,7 @@ export default function App() {
   const [isTourOpen, setIsTourOpen] = useState(false)
   const [isInventoryOpen, setIsInventoryOpen] = useState(false)
   const [showWelcome, setShowWelcome] = useState(true)
+  const [appMode, setAppMode] = useState(null)
 
   // Bind the singleton engine to the game store once (idempotent in the store).
   useEffect(() => {
@@ -112,6 +119,13 @@ export default function App() {
   // Canonical command path: the store executes the line, updates game state
   // (achievements, boss challenges, XP), and returns the reply for the terminal.
   const runCommand = (line) => useGameStore.getState().runCommand(line)
+
+  if (appMode === null) return <ModeLauncher onSelect={setAppMode} />
+  if (appMode === '3d') return (
+    <Suspense fallback={<div className="flex h-full items-center justify-center bg-black text-cyan font-mono">LOADING NODE-7…</div>}>
+      <Game3DRoot onExit={() => setAppMode(null)} />
+    </Suspense>
+  )
 
   return (
     <div className="flex h-full flex-col relative bg-bg text-fg overflow-hidden">

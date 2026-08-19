@@ -24,10 +24,23 @@ describe('Refactored Layout & UI Tour Integration Tests', () => {
     document.body.innerHTML = ''
   })
 
-  it('defaults to world tab and centers GameCanvas as primary view', () => {
+  // App now opens on the mode launcher (see src/components/ModeLauncher.jsx);
+  // these tests exercise the 2D game shell, so every render is followed by
+  // selecting "PLAY 2D" before the existing assertions run.
+  function renderAndEnter2D() {
     act(() => {
       root.render(<App />)
     })
+    const play2dBtn = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent.includes('PLAY 2D')
+    )
+    act(() => {
+      play2dBtn.click()
+    })
+  }
+
+  it('defaults to world tab and centers GameCanvas as primary view', () => {
+    renderAndEnter2D()
 
     // Check header exists
     const header = container.querySelector('header')
@@ -45,9 +58,7 @@ describe('Refactored Layout & UI Tour Integration Tests', () => {
   })
 
   it('opens and navigates the UI Tour modal from the header button', () => {
-    act(() => {
-      root.render(<App />)
-    })
+    renderAndEnter2D()
 
     // Find and click "START UI TOUR" button in header
     const tourBtn = [...container.querySelectorAll('header button')].find((b) =>
@@ -88,9 +99,7 @@ describe('Refactored Layout & UI Tour Integration Tests', () => {
   })
 
   it('toggles terminal drawer via ~ key and toggle button', () => {
-    act(() => {
-      root.render(<App />)
-    })
+    renderAndEnter2D()
 
     // Find floating terminal drawer toggle button
     const terminalToggleBtn = [...container.querySelectorAll('button')].find((b) =>
@@ -114,9 +123,7 @@ describe('Refactored Layout & UI Tour Integration Tests', () => {
   })
 
   it('toggles fullscreen mode hiding sidebars and header', () => {
-    act(() => {
-      root.render(<App />)
-    })
+    renderAndEnter2D()
 
     const fullscreenBtn = [...container.querySelectorAll('header button')].find((b) =>
       b.textContent.includes('FULLSCREEN')
