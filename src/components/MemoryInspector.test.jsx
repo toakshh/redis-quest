@@ -151,4 +151,15 @@ describe('MemoryInspector', () => {
     expect(greetingRow.getAttribute('data-modified')).toBe('true')
     expect(greetingRow.textContent).toContain('⚡ MUTATED')
   })
+
+  it('renders a stream key without crashing, showing its entry count', () => {
+    engine.rawExecute('XADD', 'orders', '1-0', 'item', 'widget')
+    engine.rawExecute('XADD', 'orders', '2-0', 'item', 'gadget')
+    const view = render(engine)
+    cleanup = () => view.root.unmount()
+
+    const streamRow = [...document.querySelectorAll('li')].find((li) => li.textContent.includes('orders'))
+    expect(streamRow).not.toBeUndefined()
+    expect(streamRow.textContent).toContain('2 entries')
+  })
 })
