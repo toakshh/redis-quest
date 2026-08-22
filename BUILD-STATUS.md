@@ -50,7 +50,7 @@ T-044  DONE
 T-045  DONE
 T-046  DONE
 T-047  DONE
-T-048  TODO
+T-048  DONE
 T-049  TODO
 T-050  TODO
 T-051  TODO
@@ -275,5 +275,33 @@ export function createQualityManager()
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/config/quality.test.js
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-048 · Create LevelLoader
+
+**DEPENDS ON:** T-047
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/view/level/LevelLoader.jsx, src/game3d/view/level/LevelLoader.test.jsx
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export default function LevelLoader({ url, colliders })
+```
+
+**RULES:**
+1. Loads the GLTF using `useGLTF(url)` from `@react-three/drei`. Assume Draco is used globally or pass draco path.
+2. Creates Colliders from the `colliders` manifest array passed in, never generating colliders automatically from meshes at runtime.
+3. Wraps the loading with a `<Suspense>` boundary.
+
+**TEST CONTRACT:**
+1. Wraps children in Suspense.
+2. Calls useGLTF for the url.
+3. Renders colliders given in manifest.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/view/level/LevelLoader.test.jsx
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
