@@ -63,7 +63,7 @@ T-057  DONE
 T-058  DONE
 T-059  DONE
 T-060  DONE
-T-061  TODO
+T-061  DONE
 T-062  TODO
 T-063  TODO
 T-064  TODO
@@ -655,5 +655,32 @@ export function createRecallGate({ debriefData, timeLimitMs = 45000 })
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/sim/teaching/RecallGate.test.js
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-061 · Create scareTypes
+
+**DEPENDS ON:** T-060
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/sim/horror/scareTypes.js, src/game3d/sim/horror/scareTypes.test.js
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export const SCARE_TYPES = [ ... ]
+```
+
+**RULES:**
+1. Defines the eight types T1–T8 as data.
+2. Structure: `{ id, baseEffectiveness, cooldownMs, minTension, requiresLineOfSight, audioCue }`.
+
+**TEST CONTRACT:**
+1. Exports SCARE_TYPES array.
+2. Contains exactly 8 types.
+3. Every type has the required fields.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/sim/horror/scareTypes.test.js
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
