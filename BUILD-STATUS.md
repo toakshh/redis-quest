@@ -62,7 +62,7 @@ T-056  DONE
 T-057  DONE
 T-058  DONE
 T-059  DONE
-T-060  TODO
+T-060  DONE
 T-061  TODO
 T-062  TODO
 T-063  TODO
@@ -625,5 +625,35 @@ export function createFieldManual()
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/sim/teaching/FieldManual.test.js
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-060 · Create RecallGate
+
+**DEPENDS ON:** T-059
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/sim/teaching/RecallGate.js, src/game3d/sim/teaching/RecallGate.test.js
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export function createRecallGate({ debriefData, timeLimitMs = 45000 })
+// Returns { start(clock), update(clock) -> "pending" | "passed" | "failed" }
+```
+
+**RULES:**
+1. Tracks a 45 s window from `start(clock)`.
+2. Must not provide hints (`hasHint: false` exposed, or similar).
+3. If check succeeds before 45s (we represent success manually for now via a test method `pass()`), returns "passed".
+4. If time expires, returns "failed". "failed" signifies it will reopen the prior debrief (handled by caller).
+
+**TEST CONTRACT:**
+1. Starts in pending state.
+2. Returns passed if pass() is called before timeout.
+3. Returns failed if time expires.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/sim/teaching/RecallGate.test.js
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
