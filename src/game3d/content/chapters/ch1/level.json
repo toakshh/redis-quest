@@ -1,0 +1,37 @@
+{
+  "id": "ch1_facility_entrance",
+  "name": "Level -1: Server Farm A",
+  "geometry": "models/ch1_greybox.glb",
+  "spawnPoints": [
+    { "id": "player_start", "position": [0, 1, 0], "rotation": [0, 0, 0] },
+    { "id": "margit_loc", "position": [10, 1, -5], "rotation": [0, -1.57, 0] },
+    { "id": "delacroix_loc", "position": [-12, 1, 8], "rotation": [0, 3.14, 0] }
+  ],
+  "colliders": [
+    {
+      "type": "cuboid",
+      "args": [20, 1, 20],
+      "position": [0, -0.5, 0]
+    },
+    {
+      "type": "cuboid",
+      "args": [1, 5, 20],
+      "position": [-20, 2.5, 0]
+    },
+    {
+      "type": "cuboid",
+      "args": [1, 5, 20],
+      "position": [20, 2.5, 0]
+    },
+    {
+      "type": "cuboid",
+      "args": [20, 5, 1],
+      "position": [0, 2.5, -20]
+    },
+    {
+      "type": "cuboid",
+      "args": [20, 5, 1],
+      "position": [0, 2.5, 20]
+    }
+  ]
+}
