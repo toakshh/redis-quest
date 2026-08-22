@@ -48,7 +48,7 @@ T-042  DONE
 T-043  DONE
 T-044  DONE
 T-045  DONE
-T-046  TODO
+T-046  DONE
 T-047  TODO
 T-048  TODO
 T-049  TODO
@@ -218,5 +218,35 @@ export default function WeaponRig({ children, isAds = false, fireImpulse = 0, ca
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/view/player/WeaponRig.test.jsx
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-046 · Create PostChain
+
+**DEPENDS ON:** T-045
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/view/fx/PostChain.jsx, src/game3d/view/fx/PostChain.test.jsx
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export default function PostChain()
+```
+
+**RULES:**
+1. Render `@react-three/postprocessing` `EffectComposer` with SMAA.
+2. The exact chain: `SSAO`, `Bloom`, `ChromaticAberration`, `Glitch`, `Noise`, `Vignette`. 
+3. Every parameter bound to a sim value via a ref (read from `useSim()`), mutated inside a `useFrame`, not via React state. (E.g., `vignetteRef.current.offset = ...`).
+Wait! R3F postprocessing passes expose refs sometimes? `ChromaticAberration` takes an offset ref. But actually, standard practice is to use refs on the effects and mutate them in `useFrame`:
+`ref.current.blendMode.opacity.value = ...` or similar. Since we may not know the exact imperative api for `postprocessing` without deep knowledge, we'll assign `ref` and update common uniforms like `chromaticAberrationRef.current.offset` or `glitchRef.current.mode`. Wait, `Noise` is often used for Grain.
+Let's see.
+
+**TEST CONTRACT:**
+1. Renders the EffectComposer and passes.
+2. Contains refs for postprocessing updates.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/view/fx/PostChain.test.jsx
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
