@@ -56,7 +56,7 @@ T-050  DONE
 T-051  DONE
 T-052  DONE
 T-053  DONE
-T-054  TODO
+T-054  DONE
 T-055  TODO
 T-056  TODO
 T-057  TODO
@@ -453,5 +453,34 @@ export const VOCABULARY = [ ... ]
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/content/vocabulary.test.js
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-054 · Create CardComposer
+
+**DEPENDS ON:** T-053
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/view/hud/CardComposer.jsx, src/game3d/view/hud/CardComposer.test.jsx
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export default function CardComposer({ onFire })
+```
+
+**RULES:**
+1. Hold-RMB opens, release fires (calls `onFire` with the composed command).
+2. Sets `world.timeScale = FEEL.ui.cardComposerSlowFactor` while open, restores to `1` when closed.
+3. Must display the assembled real command string as it builds (e.g. `SET k 1`).
+
+**TEST CONTRACT:**
+1. Renders nothing or closed state by default.
+2. RMB down opens the composer and slows time.
+3. RMB up closes, restores timeScale, calls onFire.
+4. Displays assembled command.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/view/hud/CardComposer.test.jsx
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
