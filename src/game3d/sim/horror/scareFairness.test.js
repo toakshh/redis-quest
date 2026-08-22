@@ -56,3 +56,92 @@ describe('Scare Fairness Predicates', () => {
     expect(evaluateFairness(validCandidate, invalidContext)).toBe(false)
   })
 })
+
+import { createScareDirector } from './ScareDirector.js'
+
+describe('ScareFairness Property Testing (T-067)', () => {
+  it('Simulates 1000 runs and ensures no fairness rules broken', () => {
+    // 1000 seeds
+    for (let run = 0; run < 1000; run++) {
+      let seed = run
+      const rng = () => {
+        // basic mulberry32
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      }
+      
+      const dir = createScareDirector({ rng })
+      dir.start(0, 'Medium')
+      
+      const types = [
+        { id: 'T1', baseEffectiveness: 1.0, minTension: 'Medium', audioCue: 'c' },
+        { id: 'T2', baseEffectiveness: 0.9, minTension: 'Medium', audioCue: 'c' },
+        { id: 'T3', baseEffectiveness: 0.5, minTension: 'Low', audioCue: 'c' },
+        { id: 'T4', baseEffectiveness: 0.9, minTension: 'High', audioCue: 'c' },
+        { id: 'T5', baseEffectiveness: 1.0, minTension: 'Medium', audioCue: 'c' },
+        { id: 'T6', baseEffectiveness: 1.2, minTension: 'High', audioCue: 'c' },
+        { id: 'T7', baseEffectiveness: 1.1, minTension: 'Low', audioCue: 'c' },
+        { id: 'T8', baseEffectiveness: 1.5, minTension: 'High', audioCue: 'c' }
+      ]
+      
+      const context = {
+        isPressureTest: false,
+        timeSincePreciseInput: 10000,
+        inDebrief: false,
+        recentScares: []
+      }
+      
+      let clockMs = 0
+      const endTime = 20 * 60 * 1000 // 20 minutes
+      const scareLog = []
+      
+      while (clockMs < endTime) {
+        clockMs += 1000 // Advance sim by 1 second
+        
+        // Randomly simulate precise input
+        if (rng() < 0.05) {
+          context.timeSincePreciseInput = 0
+        } else {
+          context.timeSincePreciseInput += 1000
+        }
+
+        // Random tension shifting
+        let tension = 'Medium'
+        const tensionRoll = rng()
+        if (tensionRoll > 0.8) tension = 'High'
+        else if (tensionRoll < 0.2) tension = 'Low'
+
+        // Check if director spawns a scare
+        const scare = dir.update(clockMs, tension, types, {}, (candidate, ctxTime) => {
+           return evaluateFairness(candidate, context)
+        })
+        
+        if (scare) {
+          scareLog.push({ id: scare.id, time: clockMs, gapFromRequiredInput: context.timeSincePreciseInput })
+          context.recentScares.push(scare.id)
+          if (context.recentScares.length > 3) {
+            context.recentScares.shift()
+          }
+        }
+      }
+      
+      // Analyze run
+      // 1. GAP from precise input
+      expect(scareLog.every(s => s.gapFromRequiredInput >= 3000)).toBe(true)
+      
+      // 2. No repeats within 4
+      const maxConsecutiveSameType = (log) => {
+         for (let i = 0; i < log.length - 3; i++) {
+           const id = log[i].id
+           if (log[i+1].id === id || log[i+2].id === id || log[i+3].id === id) {
+             return 2 // means repeated within 4
+           }
+         }
+         return 0
+      }
+      expect(maxConsecutiveSameType(scareLog)).toBeLessThan(2)
+    }
+  })
+})
