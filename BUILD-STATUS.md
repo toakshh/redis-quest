@@ -58,7 +58,7 @@ T-052  DONE
 T-053  DONE
 T-054  DONE
 T-055  DONE
-T-056  TODO
+T-056  DONE
 T-057  TODO
 T-058  TODO
 T-059  TODO
@@ -510,5 +510,35 @@ export default function ReceiptLine({ physicalText, realText, visibleMs = FEEL.u
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/view/hud/ReceiptLine.test.jsx
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-056 · Create DebriefQueue
+
+**DEPENDS ON:** T-055
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/sim/teaching/DebriefQueue.js, src/game3d/sim/teaching/DebriefQueue.test.js
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export function createDebriefQueue()
+// Returns: { enqueue(incidentId), tryDequeue(scareDirectorActive) -> incidentId | null, queue: [] }
+```
+
+**RULES:**
+1. Enqueues a string `incidentId` on incident resolve.
+2. `tryDequeue(scareDirectorActive)` returns the next item (FIFO).
+3. **Never dequeues while `scareDirectorActive` is true** (returns `null` in that case, leaving item in queue).
+4. `queue` property exposes current array.
+
+**TEST CONTRACT:**
+1. Enqueues strings.
+2. Returns null on tryDequeue if scareDirectorActive is true.
+3. Dequeues and removes item otherwise.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/sim/teaching/DebriefQueue.test.js
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
