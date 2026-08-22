@@ -61,7 +61,7 @@ T-055  DONE
 T-056  DONE
 T-057  DONE
 T-058  DONE
-T-059  TODO
+T-059  DONE
 T-060  TODO
 T-061  TODO
 T-062  TODO
@@ -595,5 +595,35 @@ export const CH1_DEBRIEFS = { ... }
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/content/chapters/ch1/debriefs.test.js
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-059 · Create FieldManual
+
+**DEPENDS ON:** T-058
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/sim/teaching/FieldManual.js, src/game3d/sim/teaching/FieldManual.test.js
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export function createFieldManual()
+// Returns { pages: [], addPage(debriefData), exportMarkdown() }
+```
+
+**RULES:**
+1. Manages a page store for debriefs.
+2. Dedup: doesn't add a page if it's already there (based on `actualCommand` or an `id`).
+3. Keeps ordering (insertion order).
+4. `exportMarkdown()` produces a continuous markdown document with headers.
+
+**TEST CONTRACT:**
+1. Adds pages and maintains order.
+2. Deduplicates identical pages.
+3. exportMarkdown produces readable markdown containing the fields.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/sim/teaching/FieldManual.test.js
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
