@@ -57,7 +57,7 @@ T-051  DONE
 T-052  DONE
 T-053  DONE
 T-054  DONE
-T-055  TODO
+T-055  DONE
 T-056  TODO
 T-057  TODO
 T-058  TODO
@@ -482,5 +482,33 @@ export default function CardComposer({ onFire })
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/view/hud/CardComposer.test.jsx
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-055 · Create ReceiptLine
+
+**DEPENDS ON:** T-054
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/view/hud/ReceiptLine.jsx, src/game3d/view/hud/ReceiptLine.test.jsx
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export default function ReceiptLine({ physicalText, realText, visibleMs = FEEL.ui.receiptVisibleMs })
+```
+
+**RULES:**
+1. Renders a two-column layout: plain-language left, real syntax right.
+2. Visible for `visibleMs`, then fades out. 
+3. Never blocks pointer events (`pointer-events: none`).
+
+**TEST CONTRACT:**
+1. Renders two columns with correct text.
+2. Sets pointer-events to none.
+3. Fades out / hides after visibleMs.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/view/hud/ReceiptLine.test.jsx
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
