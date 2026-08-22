@@ -46,7 +46,7 @@ T-040  DONE      2026-08-23
 T-041  DONE
 T-042  DONE
 T-043  DONE
-T-044  TODO
+T-044  DONE
 T-045  TODO
 T-046  TODO
 T-047  TODO
@@ -161,5 +161,33 @@ export default function CharacterController()
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/view/player/CharacterController.test.jsx
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-044 · Create PlayerRig
+
+**DEPENDS ON:** T-043
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/view/player/PlayerRig.jsx, src/game3d/view/player/PlayerRig.test.jsx
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export default function PlayerRig({ isSprinting = false, velocity = { x: 0, z: 0 } })
+```
+
+**RULES:**
+1. Render `<PointerLockControls>` from `@react-three/drei`.
+2. Apply head bob and strafe roll based on `FEEL.camera`.
+3. Lerp the camera FOV when `isSprinting` is true (vs false).
+
+**TEST CONTRACT:**
+1. Renders PointerLockControls.
+2. Updates camera FOV on sprint (useFrame test or similar).
+3. Applies roll/bob (verifiable mostly by structure, we will test the existence of logic).
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/view/player/PlayerRig.test.jsx
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
