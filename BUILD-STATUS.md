@@ -52,7 +52,7 @@ T-046  DONE
 T-047  DONE
 T-048  DONE
 T-049  DONE
-T-050  TODO
+T-050  DONE
 T-051  TODO
 T-052  TODO
 T-053  TODO
@@ -332,5 +332,33 @@ export default function EnemyInstances({ geometry, material, count })
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/view/entities/EnemyInstances.test.jsx
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-050 · Create SimInspector
+
+**DEPENDS ON:** T-049
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/view/debug/SimInspector.jsx, src/game3d/view/debug/SimInspector.test.jsx
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export default function SimInspector()
+```
+
+**RULES:**
+1. Renders an HTML overlay showing fps, ms per stage vs BUDGETS, entity count, draw calls, active beat, ledger values.
+2. Toggled with F3.
+3. Reads from `useSim()`.
+
+**TEST CONTRACT:**
+1. Renders nothing by default.
+2. Toggles with F3 key.
+3. Reads and displays simulation data.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/view/debug/SimInspector.test.jsx
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
