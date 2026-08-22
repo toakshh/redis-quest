@@ -51,7 +51,7 @@ T-045  DONE
 T-046  DONE
 T-047  DONE
 T-048  DONE
-T-049  TODO
+T-049  DONE
 T-050  TODO
 T-051  TODO
 T-052  TODO
@@ -303,5 +303,34 @@ export default function LevelLoader({ url, colliders })
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/view/level/LevelLoader.test.jsx
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-049 · Create EnemyInstances
+
+**DEPENDS ON:** T-048
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/view/entities/EnemyInstances.jsx, src/game3d/view/entities/EnemyInstances.test.jsx
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export default function EnemyInstances({ geometry, material, count })
+```
+
+**RULES:**
+1. Renders an `<instancedMesh>` using passed geometry and material.
+2. In `useFrame`, iterate over the physics/entity store Float32Arrays and update the instances' matrices (position, rotation).
+3. Call `meshRef.current.instanceMatrix.needsUpdate = true`.
+4. Zero React re-renders (do not use state to track positions).
+
+**TEST CONTRACT:**
+1. Renders instancedMesh with correct args.
+2. Updates matrices in useFrame based on entities.
+3. Sets needsUpdate = true.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/view/entities/EnemyInstances.test.jsx
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
