@@ -43,7 +43,7 @@ T-037  DONE      2026-08-22
 T-038  DONE      2026-08-22
 T-039  DONE      2026-08-22
 T-040  DONE      2026-08-23
-T-041  TODO
+T-041  DONE
 T-042  TODO
 T-043  TODO
 T-044  TODO
@@ -80,3 +80,35 @@ T-074  TODO
 T-075  TODO
 T-076  TODO
 T-077  TODO
+### TASK T-041 · Create the Game3DRoot root component
+
+**DEPENDS ON:** T-040
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** src/App.jsx (existing 2D app)
+**CREATE:** src/game3d/view/Game3DRoot.jsx, src/game3d/view/Game3DRoot.test.jsx
+**MODIFY:** (None yet)
+
+**CONTRACT:**
+```js
+export default function Game3DRoot({ seed, playerKey })
+// Return shape: a React component rendering a @react-three/fiber <Canvas>
+```
+
+**RULES:**
+1. Use exact Canvas props: `dpr={[0.6,2]}` and `gl={{ antialias:false, powerPreference:'high-performance' }}`
+2. Render `<AdaptiveDpr pixelated />` from `@react-three/drei`
+3. Create the 3D runtime exactly once in a `useRef` using `createRuntime`, and dispose it exactly once on unmount. Note: React 18 strict mode may run effects twice.
+4. Never import or use Zustand from the 2D app.
+5. Provide a fallback suspense boundary.
+
+**TEST CONTRACT:**
+1. Renders the Canvas with correct gl and dpr props
+2. Creates the runtime once via createRuntime
+3. Calls runtime.dispose() on unmount
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/view/Game3DRoot.test.jsx
+```
+**DONE WHEN:** Tests pass and the component fulfills the contract.
+**IF IT FAILS:** Fix the component logic; ensure React imports are correct and mock Canvas properly for the test.
