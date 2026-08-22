@@ -684,3 +684,32 @@ export const SCARE_TYPES = [ ... ]
 npx vitest run src/game3d/sim/horror/scareTypes.test.js
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-062 · Create FlinchMeter
+
+**DEPENDS ON:** T-061
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/sim/horror/FlinchMeter.js, src/game3d/sim/horror/FlinchMeter.test.js
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export function createFlinchMeter()
+// Returns { startMeasurement(clock), update(clock, inputData), getFlinch() -> 0..1 | null }
+```
+
+**RULES:**
+1. Samples inputs for 400 ms after `startMeasurement`.
+2. Computes `flinch = 0.5*mouseJerk + 0.3*inputReversal + 0.2*inputFreeze`, normalized to `0..1`.
+3. Returns the computed value once 400ms passes, otherwise null.
+
+**TEST CONTRACT:**
+1. Returns null while sampling.
+2. Applies weights correctly for max jerk, etc.
+3. Clamps result between 0 and 1.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/sim/horror/FlinchMeter.test.js
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
