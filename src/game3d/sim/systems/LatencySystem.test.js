@@ -1,5 +1,5 @@
 // Tests for LatencySystem: the stall hitch on expensive commands and the p99
-// estimate over the rolling command window.
+// estimate over the rolling command time-frame.
 
 import { describe, it, expect } from 'vitest'
 import { createLatencySystem, STALL_THRESHOLD_MS } from './LatencySystem.js'

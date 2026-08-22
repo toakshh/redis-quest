@@ -1,19 +1,19 @@
 export function createDramaLedger() {
   const events = []
   const flinchHistory = []
-  
+
   return {
-    recordEvent(type, data) {
-      events.push({ type, data, timestamp: Date.now() })
+    recordEvent(type, data, clockMs = 0) {
+      events.push({ type, data, timestamp: clockMs })
     },
-    
+
     recordFlinch(flinchValue) {
       flinchHistory.push(flinchValue)
       if (flinchHistory.length > 20) {
         flinchHistory.shift()
       }
     },
-    
+
     get desensitisation() {
       if (flinchHistory.length === 0) return 0
       const sum = flinchHistory.reduce((a,b) => a+b, 0)

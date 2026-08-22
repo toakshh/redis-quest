@@ -88,7 +88,7 @@ export function buildIntent(toolId, targetKey, modifiers = {}) {
       break
     }
     case TOOLS.TOLLGATE:
-      // A rate-limit bucket: bump the counter for this window.
+      // A rate-limit bucket: bump the counter for this time-frame.
       line = `INCR ${key}`
       break
     case TOOLS.SPREAD:
