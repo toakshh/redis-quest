@@ -55,7 +55,7 @@ T-049  DONE
 T-050  DONE
 T-051  DONE
 T-052  DONE
-T-053  TODO
+T-053  DONE
 T-054  TODO
 T-055  TODO
 T-056  TODO
@@ -425,5 +425,33 @@ export function createVocabularyLadder(vocabularyData)
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/sim/teaching/VocabularyLadder.test.js
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-053 · Create Vocabulary content
+
+**DEPENDS ON:** T-052
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/content/vocabulary.js, src/game3d/content/vocabulary.test.js
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export const VOCABULARY = [ ... ]
+```
+
+**RULES:**
+1. Data only.
+2. One row per concept: `{ id, physical, game, real, firstSeenChapter }`.
+3. Minimum 24 concepts.
+
+**TEST CONTRACT:**
+1. Exports VOCABULARY array.
+2. Array has at least 24 elements.
+3. Every element has id, physical, game, real, firstSeenChapter fields.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/content/vocabulary.test.js
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
