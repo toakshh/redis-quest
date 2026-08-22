@@ -53,7 +53,7 @@ T-047  DONE
 T-048  DONE
 T-049  DONE
 T-050  DONE
-T-051  TODO
+T-051  DONE
 T-052  TODO
 T-053  TODO
 T-054  TODO
@@ -360,5 +360,40 @@ export default function SimInspector()
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/view/debug/SimInspector.test.jsx
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-051 · Create LadderState
+
+**DEPENDS ON:** T-050
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/sim/teaching/LadderState.js, src/game3d/sim/teaching/LadderState.test.js
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export function createLadderState({ currentChapter = 1 } = {})
+// Returns: {
+//   getTier(conceptId),
+//   setTier(conceptId, tier),
+//   canUseTier(tier),
+//   recordUsage(conceptId, tier),
+//   getLedger()
+// }
+```
+
+**RULES:**
+1. Tiers 0–3, never decreasing (`setTier` ignores lower values).
+2. `canUseTier(n)` gates by chapter (e.g. Chapter 1 might only support Tier 1, Chapter 2 Tier 2... let's say tier <= chapter).
+3. Records tier usage per concept for the ledger: increments a count per `(conceptId, tier)`.
+
+**TEST CONTRACT:**
+1. Never decreases tier on setTier.
+2. canUseTier respects current chapter.
+3. recordUsage accumulates in the ledger.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/sim/teaching/LadderState.test.js
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
