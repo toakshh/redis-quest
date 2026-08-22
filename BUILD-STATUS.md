@@ -47,7 +47,7 @@ T-041  DONE
 T-042  DONE
 T-043  DONE
 T-044  DONE
-T-045  TODO
+T-045  DONE
 T-046  TODO
 T-047  TODO
 T-048  TODO
@@ -189,5 +189,34 @@ export default function PlayerRig({ isSprinting = false, velocity = { x: 0, z: 0
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/view/player/PlayerRig.test.jsx
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-045 · Create WeaponRig
+
+**DEPENDS ON:** T-044
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/view/player/WeaponRig.jsx, src/game3d/view/player/WeaponRig.test.jsx
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export default function WeaponRig({ children, isAds = false, fireImpulse = 0, cameraLookDelta = { x: 0, y: 0 } })
+```
+
+**RULES:**
+1. Renders a generic `<group>` wrapping `children`.
+2. Spring-damper recoil: `fireImpulse` adds to a recoil velocity, which is pulled back to 0 using `FEEL.weapon.recoilStiffness` and damped with `FEEL.weapon.recoilDamping`.
+3. Camera sway lags camera velocity.
+4. **All math in `useFrame` with pre-allocated `Vector3`s/`Euler`s declared outside the component.**
+
+**TEST CONTRACT:**
+1. Renders a group containing children.
+2. Updates recoil and sway inside useFrame.
+3. Preallocates vectors (visual / test inspection).
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/view/player/WeaponRig.test.jsx
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
