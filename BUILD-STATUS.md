@@ -45,7 +45,7 @@ T-039  DONE      2026-08-22
 T-040  DONE      2026-08-23
 T-041  DONE
 T-042  DONE
-T-043  TODO
+T-043  DONE
 T-044  TODO
 T-045  TODO
 T-046  TODO
@@ -134,3 +134,32 @@ export function SimProvider({ runtime, world, children })
 Wait, if it's inside `<Canvas>`, `useFrame` could be used. But `useEffect` is explicitly stated in the task grid "Runs `GameLoop` in a `useEffect`, stops on cleanup."
 
 Let's refine the contract.
+### TASK T-043 · Create CharacterController
+
+**DEPENDS ON:** T-042
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/view/player/CharacterController.jsx, src/game3d/view/player/CharacterController.test.jsx
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export default function CharacterController()
+```
+
+**RULES:**
+1. Renders a kinematicPosition `<RigidBody>`.
+2. Creates a Capsule collider: 0.4 radius × 1.8 height.
+3. Instantiates a Rapier `KinematicCharacterController` with offset 0.01, sets `setApplyImpulsesToDynamicBodies(true)`.
+4. Reads from `FEEL.move` (e.g. speed or gravity).
+
+**TEST CONTRACT:**
+1. Renders a RigidBody with correct type and colliders.
+2. Creates character controller with correct offset.
+3. Applies impulses to dynamic bodies.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/view/player/CharacterController.test.jsx
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
