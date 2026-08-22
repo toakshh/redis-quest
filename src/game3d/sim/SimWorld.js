@@ -62,6 +62,9 @@ export function createSimWorld({ runtime, seed, clock }) {
       const scaled = dtSeconds * this.timeScale
       this.tick += 1
       this.timeMs += scaled * 1000
+      // Rebuild the broad-phase index once per tick, before systems run, so
+      // every system queries positions from the end of the previous tick.
+      this.hash.rebuild(this.entities)
       for (let i = 0; i < this.systems.length; i++) {
         this.systems[i].update(this, scaled)
       }
