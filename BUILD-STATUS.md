@@ -49,7 +49,7 @@ T-043  DONE
 T-044  DONE
 T-045  DONE
 T-046  DONE
-T-047  TODO
+T-047  DONE
 T-048  TODO
 T-049  TODO
 T-050  TODO
@@ -248,5 +248,32 @@ Let's see.
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/view/fx/PostChain.test.jsx
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-047 · Create quality settings
+
+**DEPENDS ON:** T-046
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/config/quality.js, src/game3d/config/quality.test.js
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export const QUALITY_LADDER = [ ... ]
+export function createQualityManager()
+```
+
+**RULES:**
+1. The degrade ladder from plan §14.4, in the stated order.
+2. Hysteresis: degrade below 50 fps, restore above 58.
+
+**TEST CONTRACT:**
+1. Exports QUALITY_LADDER correctly.
+2. createQualityManager handles degrade and restore based on fps.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/config/quality.test.js
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
