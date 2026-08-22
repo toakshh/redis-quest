@@ -59,7 +59,7 @@ T-053  DONE
 T-054  DONE
 T-055  DONE
 T-056  DONE
-T-057  TODO
+T-057  DONE
 T-058  TODO
 T-059  TODO
 T-060  TODO
@@ -540,5 +540,33 @@ export function createDebriefQueue()
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/sim/teaching/DebriefQueue.test.js
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-057 · Create DebriefCard
+
+**DEPENDS ON:** T-056
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/view/hud/DebriefCard.jsx, src/game3d/view/hud/DebriefCard.test.jsx
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+// Props: { debriefData, onDismiss }
+export default function DebriefCard({ debriefData, onDismiss })
+```
+
+**RULES:**
+1. Renders the exact six-field layout from plan §8.4 (whatHappened, whatYouDid, realWorldName, actualCommand, whenToUse, ifWrong).
+2. Fully pauses the sim (`world.timeScale = 0`) on mount, restores to 1 on unmount or dismiss.
+
+**TEST CONTRACT:**
+1. Renders all six fields.
+2. Sets timeScale to 0 on mount.
+3. Restores timeScale and calls onDismiss when dismissed.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/view/hud/DebriefCard.test.jsx
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
