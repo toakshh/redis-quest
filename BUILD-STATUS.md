@@ -79,7 +79,7 @@ T-073  DONE
 T-074  DONE
 T-075  DONE
 T-076  DONE
-T-077  TODO
+T-077  DONE
 ### TASK T-041 · Create the Game3DRoot root component
 
 **DEPENDS ON:** T-040
