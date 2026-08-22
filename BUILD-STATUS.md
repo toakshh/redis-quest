@@ -54,7 +54,7 @@ T-048  DONE
 T-049  DONE
 T-050  DONE
 T-051  DONE
-T-052  TODO
+T-052  DONE
 T-053  TODO
 T-054  TODO
 T-055  TODO
@@ -395,5 +395,35 @@ export function createLadderState({ currentChapter = 1 } = {})
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/sim/teaching/LadderState.test.js
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-052 · Create VocabularyLadder
+
+**DEPENDS ON:** T-051
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/sim/teaching/VocabularyLadder.js, src/game3d/sim/teaching/VocabularyLadder.test.js
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export function createVocabularyLadder(vocabularyData)
+// Returns { nameFor(conceptId, stage) }
+```
+
+**RULES:**
+1. Given a conceptId and stage (0=physical, 1=game, 2=real), returns the appropriate string.
+2. If the concept doesn't exist, returns the conceptId itself as a fallback.
+3. Stage advances on debrief completion, never on a timer (enforced by the caller, but the ladder just maps stage to string).
+
+**TEST CONTRACT:**
+1. returns physical name for stage 0
+2. returns game name for stage 1
+3. returns real name for stage 2
+4. returns fallback for missing concept
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/sim/teaching/VocabularyLadder.test.js
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
