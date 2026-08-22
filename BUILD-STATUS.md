@@ -60,7 +60,7 @@ T-054  DONE
 T-055  DONE
 T-056  DONE
 T-057  DONE
-T-058  TODO
+T-058  DONE
 T-059  TODO
 T-060  TODO
 T-061  TODO
@@ -568,5 +568,32 @@ export default function DebriefCard({ debriefData, onDismiss })
 **ACCEPTANCE:**
 ```bash
 npx vitest run src/game3d/view/hud/DebriefCard.test.jsx
+```
+**DONE WHEN:** Component passes tests and adheres to rules.
+### TASK T-058 · Create ch1 debriefs
+
+**DEPENDS ON:** T-057
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/content/chapters/ch1/debriefs.js, src/game3d/content/chapters/ch1/debriefs.test.js
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export const CH1_DEBRIEFS = { ... }
+```
+
+**RULES:**
+1. Data only, keyed by incident ID.
+2. Six fields per debrief: whatHappened, whatYouDid, realWorldName, actualCommand, whenToUse, ifWrong.
+3. Write for a non-technical reader. At least 2 incidents.
+
+**TEST CONTRACT:**
+1. Exports CH1_DEBRIEFS.
+2. Every entry has the six required fields.
+
+**ACCEPTANCE:**
+```bash
+npx vitest run src/game3d/content/chapters/ch1/debriefs.test.js
 ```
 **DONE WHEN:** Component passes tests and adheres to rules.
