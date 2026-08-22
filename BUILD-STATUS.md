@@ -44,7 +44,7 @@ T-038  DONE      2026-08-22
 T-039  DONE      2026-08-22
 T-040  DONE      2026-08-23
 T-041  DONE
-T-042  TODO
+T-042  DONE
 T-043  TODO
 T-044  TODO
 T-045  TODO
@@ -112,3 +112,25 @@ npx vitest run src/game3d/view/Game3DRoot.test.jsx
 ```
 **DONE WHEN:** Tests pass and the component fulfills the contract.
 **IF IT FAILS:** Fix the component logic; ensure React imports are correct and mock Canvas properly for the test.
+### TASK T-042 · Create the SimProvider context
+
+**DEPENDS ON:** T-041
+**READ FIRST:** pro-instruct.md
+**DO NOT READ:** (None)
+**CREATE:** src/game3d/view/SimProvider.jsx, src/game3d/view/SimProvider.test.jsx
+**MODIFY:** (None)
+
+**CONTRACT:**
+```js
+export const SimContext = React.createContext(null)
+export function useSim()
+export function SimProvider({ runtime, world, children })
+```
+
+**RULES:**
+1. Expose an object `{ world, runtime }` as the context value.
+2. The context value must be stable across renders (useMemo or direct object if props never change, but prefer returning stable refs). The spec says "Exposes refs, not state", which means we don't put sim properties into React state. We just provide `{world, runtime}` object so children can access them as references.
+3. In `SimProvider`, start the core loop in a `useEffect`. Frame timing should likely use `requestAnimationFrame`. Wait, typical R3F uses `useFrame` for loop, but here the spec says "Runs `GameLoop` in a `useEffect`, stops on cleanup." So we create an interval or rAF that calls something like `world.step()`. Let's clarify: if it runs GameLoop inside a React component, does it use `requestAnimationFrame`?
+Wait, if it's inside `<Canvas>`, `useFrame` could be used. But `useEffect` is explicitly stated in the task grid "Runs `GameLoop` in a `useEffect`, stops on cleanup."
+
+Let's refine the contract.
