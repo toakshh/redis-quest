@@ -1,37 +1,39 @@
 {
-  "id": "ch1_facility_entrance",
+  "id": "ch1_server_farm_a",
   "name": "Level -1: Server Farm A",
-  "geometry": "models/ch1_greybox.glb",
+  "geometry": null,
+  "ambient": {
+    "fogColor": "#05070a",
+    "fogNear": 6,
+    "fogFar": 46,
+    "ambientIntensity": 0.35
+  },
   "spawnPoints": [
-    { "id": "player_start", "position": [0, 1, 0], "rotation": [0, 0, 0] },
-    { "id": "margit_loc", "position": [10, 1, -5], "rotation": [0, -1.57, 0] },
-    { "id": "delacroix_loc", "position": [-12, 1, 8], "rotation": [0, 3.14, 0] }
+    { "id": "player_start", "position": [0, 0.6, 24], "rotation": [0, 0, 0] },
+    { "id": "margit_loc", "position": [-18, 0.5, -20], "rotation": [0, 1.57, 0] },
+    { "id": "delacroix_loc", "position": [19, 0.5, -20], "rotation": [0, -1.57, 0] }
   ],
   "colliders": [
-    {
-      "type": "cuboid",
-      "args": [20, 1, 20],
-      "position": [0, -0.5, 0]
-    },
-    {
-      "type": "cuboid",
-      "args": [1, 5, 20],
-      "position": [-20, 2.5, 0]
-    },
-    {
-      "type": "cuboid",
-      "args": [1, 5, 20],
-      "position": [20, 2.5, 0]
-    },
-    {
-      "type": "cuboid",
-      "args": [20, 5, 1],
-      "position": [0, 2.5, -20]
-    },
-    {
-      "type": "cuboid",
-      "args": [20, 5, 1],
-      "position": [0, 2.5, 20]
-    }
+    { "id": "floor", "type": "cuboid", "args": [30, 1, 30], "position": [0, -0.5, 0] },
+    { "id": "ceiling", "type": "cuboid", "args": [30, 0.5, 30], "position": [0, 6, 0] },
+    { "id": "wall_north", "type": "cuboid", "args": [30, 3, 1], "position": [0, 3.5, -30] },
+    { "id": "wall_south", "type": "cuboid", "args": [30, 3, 1], "position": [0, 3.5, 30] },
+    { "id": "wall_west", "type": "cuboid", "args": [1, 3, 30], "position": [-30, 3.5, 0] },
+    { "id": "wall_east", "type": "cuboid", "args": [1, 3, 30], "position": [30, 3.5, 0] },
+
+    { "id": "partition_n_west", "type": "cuboid", "args": [11, 3, 0.5], "position": [-19, 3.5, -14] },
+    { "id": "partition_n_east", "type": "cuboid", "args": [11, 3, 0.5], "position": [19, 3.5, -14] },
+    { "id": "partition_s_west", "type": "cuboid", "args": [11, 3, 0.5], "position": [-19, 3.5, 14] },
+    { "id": "partition_s_east", "type": "cuboid", "args": [11, 3, 0.5], "position": [19, 3.5, 14] },
+
+    { "id": "backroom_divider", "type": "cuboid", "args": [0.5, 3, 8], "position": [0, 3.5, -22] }
+  ],
+  "lights": [
+    { "id": "hall_a", "position": [-12, 4.4, -6], "color": "#7fe3ff", "intensity": 140, "distance": 30, "flicker": 0.25 },
+    { "id": "hall_b", "position": [12, 4.4, -6], "color": "#7fe3ff", "intensity": 140, "distance": 30, "flicker": 0.0 },
+    { "id": "hall_c", "position": [-12, 4.4, 8], "color": "#9fb4c8", "intensity": 110, "distance": 28, "flicker": 0.6 },
+    { "id": "hall_d", "position": [12, 4.4, 8], "color": "#9fb4c8", "intensity": 110, "distance": 28, "flicker": 0.0 },
+    { "id": "gate", "position": [0, 4.2, -14], "color": "#ff5a4a", "intensity": 180, "distance": 26, "flicker": 0.15 },
+    { "id": "entry", "position": [0, 4.2, 22], "color": "#6effc0", "intensity": 70, "distance": 20, "flicker": 0.0 }
   ]
 }

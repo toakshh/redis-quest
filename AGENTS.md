@@ -51,3 +51,8 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Lives entirely under `src/game3d/`, lazy-loaded from `App.jsx` via `React.lazy`. Never shares state with the 2D game — see `claude-plan-pro.md` section 5 and `pro-instruct.md` Laws L3-L6.
 - Owns its own engine/store/save namespace: `src/game3d/bootstrap.js` (`createRuntime()`), `src/game3d/state/game3dStore.js`, `src/game3d/state/persistence3d.js` (`redis-quest:3d:` prefix).
 - Build sequence and every task's exact contract: `pro-instruct.md`. Progress tracked in `BUILD-STATUS.md`.
+- Entry chain: `index.js` → `view/Game3DRoot.jsx` → `view/Scene.jsx`. The whole game is assembled headlessly by `sim/createGameWorld.js`; the view only reads it.
+- Level geometry is generated from boxes in `content/chapters/ch1/level.js` — no `.glb` asset exists or is needed. The sim collides against the *same* collider list the view draws.
+- Physics is `sim/systems/CollisionSystem.js` (cylinder-vs-AABB), deliberately not Rapier: the determinism gate needs bit-identical replays, which a WASM solver with internal state cannot give.
+- Never put `data-testid` on a three.js element — R3F forwards it onto the object as `data.testid` and throws. Assert the scene with `@react-three/test-renderer` (see `__tests__/playable.test.jsx`).
+- Three.js r171 uses physical light units: point/spot intensities are in the hundreds, not single digits.
