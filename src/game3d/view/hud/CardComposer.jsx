@@ -17,13 +17,11 @@ export default function CardComposer({ world, onFire }) {
 
     function handleMouseUp(e) {
       if (e.button === 2) { // RMB
-        setIsOpen((prev) => {
-          if (prev) {
-            if (world) world.timeScale = 1
-            if (onFire) onFire(commandTokens.join(' '))
-          }
-          return false
-        })
+        if (isOpen) {
+          if (world) world.timeScale = 1
+          if (onFire) onFire(commandTokens.join(' '))
+        }
+        setIsOpen(false)
       }
     }
 

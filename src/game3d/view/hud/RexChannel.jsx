@@ -6,6 +6,7 @@ export default function RexChannel({ world, level }) {
   useEffect(() => {
     if (!world || !world.runtime || !world.runtime.bus) return
     
+    let timeoutId
     // Listen for hint events or debriefs
     const handleHint = (data) => {
       // Simulate audio processing delay based on world latency
@@ -17,13 +18,17 @@ export default function RexChannel({ world, level }) {
       })
 
       // Hide after a duration
-      setTimeout(() => {
+      if (timeoutId) clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => {
         setVisibleMessage(null)
       }, 5000)
     }
 
     world.runtime.bus.on('sim:hint', handleHint)
-    return () => world.runtime.bus.off('sim:hint', handleHint)
+    return () => {
+      world.runtime.bus.off('sim:hint', handleHint)
+      if (timeoutId) clearTimeout(timeoutId)
+    }
   }, [world])
 
   if (!visibleMessage) return null
