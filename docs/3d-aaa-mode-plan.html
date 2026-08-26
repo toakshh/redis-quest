@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis Quest 3D: Protocol Void</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&family=Fira+Code:wght@400;600&display=swap">
+    <style>
+        :root {
+            /* Cosmic Horror Cyberpunk Palette */
+            --bg-void: #050508;
+            --bg-surface: #0a0b12;
+            --bg-card: rgba(14, 16, 26, 0.7);
+
+            --neon-green: #00ff9d;
+            --neon-green-glow: rgba(0, 255, 157, 0.3);
+
+            --neon-pink: #ff007b;
+            --neon-pink-glow: rgba(255, 0, 123, 0.3);
+
+            --corrupt-purple: #8a2be2;
+
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+
+            --grid-color: rgba(0, 255, 157, 0.05);
+        }
+
+        @media (prefers-color-scheme: light) {
+            /* Keep it dark-first, this is a horror game pitch */
+            :root:not([data-theme="dark"]) {
+                --bg-void: #050508;
+                --bg-surface: #0a0b12;
+                --bg-card: rgba(14, 16, 26, 0.7);
+                --text-main: #e2e8f0;
+                --text-muted: #94a3b8;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-void);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            background-image:
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: center top;
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-attachment: fixed;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 0.05em;
+            color: var(--neon-green);
+        }
+
+        /* Glitch Effect */
+        .glitch-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .glitch {
+            font-size: 4rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            position: relative;
+            color: var(--text-main);
+            text-shadow: 0 0 20px var(--neon-green-glow);
+        }
+
+        .glitch::before, .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.8;
+        }
+
+        .glitch::before {
+            color: var(--neon-pink);
+            z-index: -1;
+            transform: translate(-3px, 1px);
+            animation: glitch-anim-1 3s infinite linear alternate-reverse;
+        }
+
+        .glitch::after {
+            color: var(--neon-green);
+            z-index: -2;
+            transform: translate(3px, -1px);
+            animation: glitch-anim-2 2.5s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim-1 {
+            0% { clip-path: inset(20% 0 80% 0); }
+            20% { clip-path: inset(60% 0 10% 0); }
+            40% { clip-path: inset(40% 0 50% 0); }
+            60% { clip-path: inset(80% 0 5% 0); }
+            80% { clip-path: inset(10% 0 70% 0); }
+            100% { clip-path: inset(30% 0 50% 0); }
+        }
+
+        @keyframes glitch-anim-2 {
+            0% { clip-path: inset(10% 0 60% 0); }
+            20% { clip-path: inset(30% 0 20% 0); }
+            40% { clip-path: inset(70% 0 10% 0); }
+            60% { clip-path: inset(20% 0 50% 0); }
+            80% { clip-path: inset(50% 0 30% 0); }
+            100% { clip-path: inset(5% 0 80% 0); }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 5rem;
+            position: relative;
+        }
+
+        header p {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 1.5rem auto 0;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .subtitle {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.25rem 1rem;
+            border: 1px solid var(--neon-pink);
+            color: var(--neon-pink);
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            font-size: 0.875rem;
+            letter-spacing: 0.1em;
+            background: rgba(255, 0, 123, 0.1);
+            box-shadow: 0 0 10px var(--neon-pink-glow);
+        }
+
+        section {
+            margin-bottom: 6rem;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+            font-size: 2.5rem;
+        }
+
+        .section-title::after {
+            content: '';
+            flex-grow: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--neon-green), transparent);
+            opacity: 0.5;
+        }
+
+        /* Grid Layouts */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 255, 157, 0.2);
+            padding: 2.5rem 2rem;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 20px var(--neon-green-glow);
+            transform: translateY(-5px);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--neon-green);
+        }
+
+        .card.corrupted::before {
+            background: var(--neon-pink);
+        }
+        .card.corrupted:hover {
+            border-color: var(--neon-pink);
+            box-shadow: 0 0 20px var(--neon-pink-glow);
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            display: inline-block;
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: white;
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Code/Terminal sections */
+        .terminal {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 2rem;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .terminal-header {
+            background: #111;
+            padding: 0.75rem 1rem;
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid #333;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .dot.r { background: #ff5f56; }
+        .dot.y { background: #ffbd2e; }
+        .dot.g { background: #27c93f; }
+
+        .terminal-body {
+            padding: 1.5rem;
+            overflow-x: auto;
+        }
+
+        .terminal code {
+            color: #a6accd;
+            display: block;
+            line-height: 1.5;
+            font-size: 0.9rem;
+        }
+
+        .token-keyword { color: #89ddff; font-style: italic; }
+        .token-function { color: #82aaff; }
+        .token-string { color: #c3e88d; }
+        .token-comment { color: #546e7a; font-style: italic; }
+        .token-class { color: #ffcb6b; }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 2px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .milestone {
+            position: relative;
+            margin-bottom: 3rem;
+        }
+
+        .milestone::before {
+            content: '';
+            position: absolute;
+            left: -2.35rem;
+            top: 0.5rem;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--bg-surface);
+            border: 2px solid var(--neon-pink);
+            box-shadow: 0 0 10px var(--neon-pink-glow);
+            z-index: 2;
+        }
+
+        .milestone:last-child {
+            margin-bottom: 0;
+        }
+
+        .milestone span.phase {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--neon-pink);
+            font-size: 0.875rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            margin-top: 2rem;
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        th {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--text-main);
+            font-size: 0.875rem;
+            background: rgba(0, 0, 0, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'Fira Code', monospace;
+            text-transform: uppercase;
+        }
+
+        .badge-core { background: rgba(0, 255, 157, 0.1); color: var(--neon-green); border: 1px solid rgba(0, 255, 157, 0.3); }
+        .badge-threat { background: rgba(255, 0, 123, 0.1); color: var(--neon-pink); border: 1px solid rgba(255, 0, 123, 0.3); }
+
+        .architecture-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .arch-row {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+        }
+
+        .arch-box {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px dashed var(--neon-green);
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            flex: 1;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            position: relative;
+        }
+
+        .arch-box::after {
+            content: '↓';
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--neon-green);
+            font-size: 1.5rem;
+        }
+
+        .arch-row:last-child .arch-box::after {
+            display: none;
+        }
+
+        .arch-box.core {
+            border-style: solid;
+            background: rgba(0, 255, 157, 0.05);
+            box-shadow: inset 0 0 20px rgba(0, 255, 157, 0.1);
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="glitch-wrapper">
+                <h1 class="glitch" data-text="PROTOCOL: VOID">PROTOCOL: VOID</h1>
+            </div>
+            <div class="subtitle">Redis Quest 3D AAA Mode</div>
+            <p>Target: WebGPU High-End Desktop • Framework: React Three Fiber</p>
+        </header>
+
+        <section>
+            <h2 class="section-title">Narrative & Setting</h2>
+            <div class="features-grid">
+                <div class="card corrupted">
+                    <span class="card-icon">🌌</span>
+                    <h3>Cosmic Horror Cyberpunk</h3>
+                    <p>The player is a "Netrunner" consciousness injected into a forgotten, sentient, alien data-structure built on Redis primitives. Time loops endlessly as the cluster decays. You don't restart; the <em>node</em> evicts you.</p>
+                </div>
+                <div class="card">
+                    <span class="card-icon">🧠</span>
+                    <h3>Diegetic Hacking</h3>
+                    <p>Redis isn't a side-terminal—it's the fabric of reality. You type commands on seamless holographic overlays mid-combat to alter the physical laws of the sector you're trapped in.</p>
+                </div>
+                <div class="card">
+                    <span class="card-icon">⏳</span>
+                    <h3>Time Loop Mystery</h3>
+                    <p>Every time you succumb to the "OOM Reaper" (Out of Memory), the world resets, but your Redis Command Mastery persists. You slowly decode the alien architecture to execute a final cluster failover.</p>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="section-title">Combat & Mechanics Mapping</h2>
+            <p style="color: var(--text-muted); max-width: 800px; margin-bottom: 2rem; font-size: 1.1rem;">
+                A hybrid of high-octane FPS and puzzle-solving. Your abilities are directly mapped to Redis production skills unlocked via the Skill Tree.
+            </p>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Redis Concept</th>
+                            <th>3D AAA Gameplay Mechanic</th>
+                            <th>Category</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Caching (Strings/Hashes)</strong></td>
+                            <td>Deployable physical shields that absorb damage until their TTL expires.</td>
+                            <td><span class="badge badge-core">Defensive</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Rate Limiting (INCR/EXPIRE)</strong></td>
+                            <td>Weapon cooldown/overheating. Hack enemy turrets by lowering their rate-limit limits.</td>
+                            <td><span class="badge badge-threat">Offensive</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Message Queues (Lists/Streams)</strong></td>
+                            <td>Physical conveyor belts dumping enemies. You must execute LPOP/RPOP to clear logic jams.</td>
+                            <td><span class="badge badge-core">Environmental</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Pub/Sub</strong></td>
+                            <td>Alert system. Subscribe to enemy movement channels to gain thermal vision through walls.</td>
+                            <td><span class="badge badge-core">Sensory</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Cache Invalidation Storm</strong></td>
+                            <td>A catastrophic boss phase where reality shatters. You must navigate a decaying level geometry before the eviction policy deletes the floor.</td>
+                            <td><span class="badge badge-threat">Boss Event</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="section-title">Technical Architecture</h2>
+            <div class="architecture-diagram">
+                <div class="arch-row">
+                    <div class="arch-box">React Router DOM<br><span style="color:var(--text-muted)">Mode Selection (2D vs 3D)</span></div>
+                    <div class="arch-box">Zustand Game Store<br><span style="color:var(--text-muted)">Shared State & Progression</span></div>
+                </div>
+                <div class="arch-row">
+                    <div class="arch-box core">
+                        React Three Fiber / @react-three/drei<br>
+                        <span style="color:var(--neon-green)">WebGPU Render Pipeline</span>
+                    </div>
+                </div>
+                <div class="arch-row">
+                    <div class="arch-box">
+                        @react-three/rapier<br>
+                        <span style="color:var(--text-muted)">60fps Physics Simulation (Player movement, projectiles)</span>
+                    </div>
+                    <div class="arch-box">
+                        Web Audio Context (Spatial)<br>
+                        <span style="color:var(--text-muted)">Aggressive 3D Positional Audio</span>
+                    </div>
+                </div>
+                <div class="arch-row">
+                    <div class="arch-box">ConsequenceEngine.js (Existing)<br><span style="color:var(--text-muted)">Event bus triggering 3D visual FX</span></div>
+                </div>
+            </div>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+                </div>
+                <div class="terminal-body">
+<pre><code><span class="token-comment">// Scene Setup Prototype</span>
+<span class="token-keyword">import</span> { Canvas } <span class="token-keyword">from</span> <span class="token-string">'@react-three/fiber'</span>
+<span class="token-keyword">import</span> { Physics } <span class="token-keyword">from</span> <span class="token-string">'@react-three/rapier'</span>
+<span class="token-keyword">import</span> { EffectComposer, Glitch, Bloom } <span class="token-keyword">from</span> <span class="token-string">'@react-three/postprocessing'</span>
+
+<span class="token-keyword">export const</span> <span class="token-function">Mode3D</span> = () => {
+    <span class="token-keyword">const</span> isCorrupted = <span class="token-function">useGameStore</span>(s => s.worldState.isCorrupted);
+
+    <span class="token-keyword">return</span> (
+        <span class="token-class">&lt;Canvas gl={{ antialias: false, logarithmicDepthBuffer: true }}&gt;</span>
+            <span class="token-class">&lt;Physics gravity={[0, -20, 0]}&gt;</span>
+                <span class="token-class">&lt;PlayerController /&gt;</span>
+                <span class="token-class">&lt;LevelGeometry /&gt;</span>
+                <span class="token-class">&lt;EnemyAI /&gt;</span>
+            <span class="token-class">&lt;/Physics&gt;</span>
+
+            <span class="token-class">&lt;EffectComposer disableNormalPass&gt;</span>
+                <span class="token-class">&lt;Bloom luminanceThreshold={1} mipmapBlur intensity={1.5} /&gt;</span>
+                {isCorrupted && <span class="token-class">&lt;Glitch delay={[1.5, 3.5]} duration={[0.1, 0.3]} strength={[0.2, 0.4]} /&gt;</span>}
+            <span class="token-class">&lt;/EffectComposer&gt;</span>
+        <span class="token-class">&lt;/Canvas&gt;</span>
+    )
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="section-title">Implementation Plan</h2>
+            <div class="timeline">
+                <div class="milestone">
+                    <span class="phase">Phase 1: Bootstrapping the Void (Engine & Entry)</span>
+                    <h3 style="color: white; margin-bottom: 0.5rem;">Dual-Mode Architecture</h3>
+                    <p>Integrate a smooth entry point separating the 2D Isometric Engine from the 3D WebGPU Engine. Setup React Three Fiber Canvas with initial Rapier physics hooks and a First-Person/Third-Person camera controller.</p>
+                </div>
+
+                <div class="milestone">
+                    <span class="phase">Phase 2: The Physical Datacenter (World & Geometry)</span>
+                    <h3 style="color: white; margin-bottom: 0.5rem;">Asset Pipeline & Post-Processing</h3>
+                    <p>Build procedural sci-fi corridors representing clustering shards. Implement `@react-three/postprocessing` for heavy Bloom, Chromatic Aberration, and Glitch effects. Ensure WebGL2 fallback for WebGPU targets.</p>
+                </div>
+
+                <div class="milestone">
+                    <span class="phase">Phase 3: Cybernetic Combat (Mechanics)</span>
+                    <h3 style="color: white; margin-bottom: 0.5rem;">Shooter Core & Physics</h3>
+                    <p>Develop the weapon system, projectile physics, and enemy hitboxes. Integrate the existing <code>SoundEngine.js</code> with Three.js PositionalAudio for aggressive, terrifying sound design when enemies (rogue keys/zombie processes) attack.</p>
+                </div>
+
+                <div class="milestone">
+                    <span class="phase">Phase 4: Diegetic Redis Hacking</span>
+                    <h3 style="color: white; margin-bottom: 0.5rem;">State & Consequence Binding</h3>
+                    <p>Map the existing `gameStore` and `ConsequenceEngine` to 3D entities. When a player casts "Shield" (creates a caching key), spawn a physical 3D barrier. Render floating diegetic terminals using `<Html>` from Drei for hacking puzzle rooms.</p>
+                </div>
+            </div>
+        </section>
+
+        <footer style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 2rem; display: flex; justify-content: space-between; align-items: center;">
+            <p style="color: var(--text-muted); font-size: 0.875rem;">redis-quest-3d-plan.v1 // Auth: FIRSTMATE</p>
+            <div style="font-family: 'Orbitron'; color: var(--neon-pink); font-size: 0.875rem; letter-spacing: 0.1em;">SYSTEMS READY</div>
+        </footer>
+    </div>
+</body>
+</html>

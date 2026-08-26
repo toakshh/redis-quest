@@ -1,0 +1,354 @@
+[
+  {
+    "id": "key",
+    "title": "Key",
+    "category": "core",
+    "tags": ["fundamental", "string", "hash", "list", "set", "zset"],
+    "summary": "A key is a name you give to a piece of data. Every value in Redis lives under a key. Keys are strings, up to 512 MB.",
+    "related": ["string", "namespace", "expire"],
+    "examples": [
+      {
+        "command": "SET username alex",
+        "explanation": "Creates a key called username with value alex."
+      },
+      {
+        "command": "GET username",
+        "explanation": "Reads the value back."
+      }
+    ]
+  },
+  {
+    "id": "string",
+    "title": "String",
+    "category": "core",
+    "tags": ["fundamental", "data-type"],
+    "summary": "Strings are the simplest Redis type. They hold text or numbers, up to 512 MB. Use SET, GET, INCR, DECR.",
+    "related": ["key", "incr", "append"],
+    "examples": [
+      {
+        "command": "SET counter 10",
+        "explanation": "Stores the number 10."
+      },
+      {
+        "command": "INCR counter",
+        "explanation": "Adds one. Now counter is 11."
+      }
+    ]
+  },
+  {
+    "id": "hash",
+    "title": "Hash",
+    "category": "core",
+    "tags": ["data-type", "object", "field"],
+    "summary": "A hash maps field names to values under one key. Perfect for objects like user profiles. Use HSET, HGET, HGETALL.",
+    "related": ["key", "field", "hmget"],
+    "examples": [
+      {
+        "command": "HSET user:1 name Alex hp 100",
+        "explanation": "Creates a hash with two fields."
+      },
+      {
+        "command": "HGET user:1 hp",
+        "explanation": "Reads just the hp field."
+      }
+    ]
+  },
+  {
+    "id": "list",
+    "title": "List",
+    "category": "core",
+    "tags": ["data-type", "queue", "sequence"],
+    "summary": "A list is an ordered collection of strings. Push to left or right, pop from either end. Use LPUSH, RPUSH, LRANGE, LPOP, RPOP.",
+    "related": ["key", "queue", "lpush"],
+    "examples": [
+      {
+        "command": "LPUSH queue task1",
+        "explanation": "Adds task1 to the front."
+      },
+      {
+        "command": "RPUSH queue task2",
+        "explanation": "Adds task2 to the back."
+      },
+      {
+        "command": "LRANGE queue 0 -1",
+        "explanation": "Shows all items in order."
+      }
+    ]
+  },
+  {
+    "id": "set",
+    "title": "Set",
+    "category": "core",
+    "tags": ["data-type", "unique", "membership"],
+    "summary": "A set holds unique strings. No duplicates. Fast membership checks. Use SADD, SMEMBERS, SISMEMBER, SREM.",
+    "related": ["key", "union", "intersection"],
+    "examples": [
+      {
+        "command": "SADD tags redis lua fast",
+        "explanation": "Adds three unique tags."
+      },
+      {
+        "command": "SMEMBERS tags",
+        "explanation": "Lists all tags."
+      }
+    ]
+  },
+  {
+    "id": "sorted-set",
+    "title": "Sorted Set",
+    "category": "core",
+    "tags": ["data-type", "ranking", "leaderboard", "score"],
+    "summary": "A sorted set stores members with a numeric score. Members are unique, ordered by score. Use ZADD, ZRANGE, ZRANK, ZSCORE.",
+    "related": ["key", "rank", "leaderboard"],
+    "examples": [
+      {
+        "command": "ZADD highscores 1000 Alex",
+        "explanation": "Adds Alex with score 1000."
+      },
+      {
+        "command": "ZRANGE highscores 0 -1",
+        "explanation": "Shows members from lowest to highest score."
+      }
+    ]
+  },
+  {
+    "id": "expire",
+    "title": "EXPIRE / TTL",
+    "category": "core",
+    "tags": ["expiry", "time-to-live", "cleanup"],
+    "summary": "EXPIRE sets a timer on a key. When it hits zero, the key is deleted. TTL shows seconds left. Use for caches and sessions.",
+    "related": ["key", "persist", "pexpire"],
+    "examples": [
+      {
+        "command": "EXPIRE session:abc 3600",
+        "explanation": "Key expires in 1 hour."
+      },
+      {
+        "command": "TTL session:abc",
+        "explanation": "Shows seconds remaining."
+      }
+    ]
+  },
+  {
+    "id": "namespace",
+    "title": "Key Naming & Namespaces",
+    "category": "core",
+    "tags": ["naming", "colon", "pattern"],
+    "summary": "Use colons to group keys: user:1:name, user:1:email. Patterns like user:* let you scan or delete groups.",
+    "related": ["key", "scan", "pattern"],
+    "examples": [
+      {
+        "command": "KEYS user:*",
+        "explanation": "Finds all keys starting with user:"
+      },
+      {
+        "command": "SCAN 0 MATCH user:*",
+        "explanation": "Safe production scan."
+      }
+    ]
+  },
+  {
+    "id": "pipeline",
+    "title": "Pipelining",
+    "category": "advanced",
+    "tags": ["performance", "batch", "network"],
+    "summary": "Send many commands at once without waiting for each reply. Reduces round-trips. Use when you have many independent commands.",
+    "related": ["performance", "mget", "mset"],
+    "examples": [
+      {
+        "command": "MSET a 1 b 2 c 3",
+        "explanation": "Sets three keys in one round-trip."
+      },
+      {
+        "command": "MGET a b c",
+        "explanation": "Gets three keys in one round-trip."
+      }
+    ]
+  },
+  {
+    "id": "transaction",
+    "title": "Transactions (MULTI / EXEC)",
+    "category": "advanced",
+    "tags": ["atomic", "multi", "exec", "watch"],
+    "summary": "MULTI starts a transaction. Commands queue up. EXEC runs them all at once. No other command runs between them. WATCH adds optimistic locking.",
+    "related": ["atomic", "watch", "optimistic-lock"],
+    "examples": [
+      {
+        "command": "MULTI\nINCR x\nINCR y\nEXEC",
+        "explanation": "Both increments run together."
+      }
+    ]
+  },
+  {
+    "id": "pubsub",
+    "title": "Pub/Sub",
+    "category": "advanced",
+    "tags": ["publish", "subscribe", "channel", "message"],
+    "summary": "Publish messages to channels. Subscribers receive them instantly. Fire-and-forget. No history kept.",
+    "related": ["channel", "message", "pattern-subscribe"],
+    "examples": [
+      {
+        "command": "SUBSCRIBE news",
+        "explanation": "Listens to the news channel."
+      },
+      {
+        "command": "PUBLISH news \"Hello!\"",
+        "explanation": "Sends a message to all listeners."
+      }
+    ]
+  },
+  {
+    "id": "lua-script",
+    "title": "Lua Scripts (EVAL / SCRIPT LOAD)",
+    "category": "advanced",
+    "tags": ["script", "atomic", "server-side", "evalsha"],
+    "summary": "Run logic on the server atomically. EVAL runs a script. SCRIPT LOAD caches it, then EVALSHA runs by hash. No network round-trips between steps.",
+    "related": ["atomic", "transaction", "evalsha"],
+    "examples": [
+      {
+        "command": "EVAL \"return redis.call('SET', KEYS[1], ARGV[1])\" 1 foo bar",
+        "explanation": "Sets foo=bar atomically."
+      }
+    ]
+  },
+  {
+    "id": "scan",
+    "title": "SCAN / SSCAN / HSCAN / ZSCAN",
+    "category": "advanced",
+    "tags": ["cursor", "iteration", "safe", "production"],
+    "summary": "Iterate keys or elements without blocking. Returns a cursor. Use instead of KEYS in production.",
+    "related": ["keys", "cursor", "pattern"],
+    "examples": [
+      {
+        "command": "SCAN 0 MATCH user:* COUNT 100",
+        "explanation": "Scans for user: keys, 100 at a time."
+      }
+    ]
+  },
+  {
+    "id": "persistence",
+    "title": "Persistence (RDB / AOF)",
+    "category": "ops",
+    "tags": ["rdb", "aof", "snapshot", "log", "durability"],
+    "summary": "RDB snapshots the dataset at intervals. AOF logs every write. Use both for best durability. Configure in redis.conf.",
+    "related": ["backup", "replica", "recovery"],
+    "examples": [
+      {
+        "command": "BGSAVE",
+        "explanation": "Starts a background RDB snapshot."
+      },
+      {
+        "command": "BGREWRITEAOF",
+        "explanation": "Compacts the AOF file."
+      }
+    ]
+  },
+  {
+    "id": "replication",
+    "title": "Replication & Sentinels",
+    "category": "ops",
+    "tags": ["replica", "master", "sentinel", "failover", "ha"],
+    "summary": "Replicas copy the primary. Sentinels watch and promote a replica if the primary fails. High availability for production.",
+    "related": ["persistence", "failover", "cluster"],
+    "examples": [
+      {
+        "command": "REPLICAOF primary-host 6379",
+        "explanation": "Makes this server a replica."
+      },
+      {
+        "command": "INFO replication",
+        "explanation": "Shows replication status."
+      }
+    ]
+  },
+  {
+    "id": "cluster",
+    "title": "Redis Cluster",
+    "category": "ops",
+    "tags": ["sharding", "hash-slot", "scale", "horizontal"],
+    "summary": "Cluster splits data across nodes by hash slots (0-16383). Automatic failover. Linear scale-out. Some multi-key commands need hash tags.",
+    "related": ["replication", "sharding", "hash-tag"],
+    "examples": [
+      {
+        "command": "CLUSTER NODES",
+        "explanation": "Shows all cluster nodes."
+      },
+      {
+        "command": "CLUSTER KEYSLOT mykey",
+        "explanation": "Shows which slot a key maps to."
+      }
+    ]
+  },
+  {
+    "id": "memory",
+    "title": "Memory Management",
+    "category": "ops",
+    "tags": ["maxmemory", "eviction", "lru", "lfu", "oom"],
+    "summary": "Set maxmemory to limit RAM. When full, eviction policy decides what goes. allkeys-lru removes least recently used. volatile-lru only evicts keys with TTL.",
+    "related": ["eviction", "maxmemory", "info-memory"],
+    "examples": [
+      {
+        "command": "CONFIG SET maxmemory 2gb",
+        "explanation": "Limits Redis to 2 GB."
+      },
+      {
+        "command": "CONFIG SET maxmemory-policy allkeys-lru",
+        "explanation": "Evicts least recently used keys."
+      }
+    ]
+  },
+  {
+    "id": "slowlog",
+    "title": "Slow Log",
+    "category": "ops",
+    "tags": ["profiling", "latency", "debug", "slowlog"],
+    "summary": "Slowlog records commands that exceed a time threshold. Use SLOWLOG GET to see recent slow commands. Tune slowlog-log-slower-than.",
+    "related": ["latency", "profiling", "info"],
+    "examples": [
+      {
+        "command": "SLOWLOG GET 10",
+        "explanation": "Shows 10 slowest recent commands."
+      },
+      {
+        "command": "CONFIG SET slowlog-log-slower-than 10000",
+        "explanation": "Logs commands slower than 10 ms."
+      }
+    ]
+  },
+  {
+    "id": "info",
+    "title": "INFO Command",
+    "category": "ops",
+    "tags": ["stats", "monitoring", "health", "diagnostics"],
+    "summary": "INFO shows server stats: memory, clients, replication, persistence, CPU, keyspace. Add a section name: INFO memory, INFO replication.",
+    "related": ["monitoring", "stats", "dbsize"],
+    "examples": [
+      {
+        "command": "INFO memory",
+        "explanation": "Shows memory usage details."
+      },
+      {
+        "command": "INFO replication",
+        "explanation": "Shows replication role and lag."
+      }
+    ]
+  },
+  {
+    "id": "config",
+    "title": "CONFIG GET / SET / REWRITE",
+    "category": "ops",
+    "tags": ["runtime", "configuration", "persist", "redis-conf"],
+    "summary": "Read or change config at runtime. CONFIG REWRITE writes changes to redis.conf. Not all settings are runtime-changeable.",
+    "related": ["redis-conf", "runtime", "maxmemory"],
+    "examples": [
+      {
+        "command": "CONFIG GET maxmemory",
+        "explanation": "Shows current maxmemory setting."
+      },
+      {
+        "command": "CONFIG SET maxmemory 1gb",
+        "explanation": "Changes maxmemory now."
+      }
+    ]
+  }
+]

@@ -1,0 +1,250 @@
+[
+  {
+    "id": "mv-set-get",
+    "title": "Store and Recall",
+    "region": "memory-village",
+    "difficulty": "beginner",
+    "description": "Learn to use SET and GET by storing a name and reading it back.",
+    "skippable": true,
+    "steps": [
+      {
+        "id": "set-name",
+        "objective": "Store your name: SET player_name \"Alex\"",
+        "hint": "Type SET player_name \"Alex\" and press Enter.",
+        "validate": { "command": "SET", "keyPattern": "player_name" },
+        "reward": { "xp": 5 },
+        "explanation": "SET stores a value under a key. Think of it as labeling a box."
+      },
+      {
+        "id": "get-name",
+        "objective": "Read it back: GET player_name",
+        "hint": "Type GET player_name to see what you stored.",
+        "validate": { "command": "GET", "keyPattern": "player_name" },
+        "reward": { "xp": 5 },
+        "explanation": "GET opens the labeled box and shows what is inside."
+      }
+    ]
+  },
+  {
+    "id": "mv-incr-decr",
+    "title": "Count Up and Down",
+    "region": "memory-village",
+    "difficulty": "beginner",
+    "description": "Learn to use INCR and DECR to change a number.",
+    "skippable": true,
+    "steps": [
+      {
+        "id": "set-counter",
+        "objective": "Create a counter: SET score 0",
+        "hint": "Type SET score 0 to start at zero.",
+        "validate": { "command": "SET", "keyPattern": "score" },
+        "reward": { "xp": 5 },
+        "explanation": "SET can store a number too. Strings can hold any text."
+      },
+      {
+        "id": "incr-counter",
+        "objective": "Add one: INCR score",
+        "hint": "Type INCR score to go from 0 to 1.",
+        "validate": { "command": "INCR", "keyPattern": "score" },
+        "reward": { "xp": 5 },
+        "explanation": "INCR adds one to a number value."
+      },
+      {
+        "id": "decr-counter",
+        "objective": "Subtract one: DECR score",
+        "hint": "Type DECR score to go back down.",
+        "validate": { "command": "DECR", "keyPattern": "score" },
+        "reward": { "xp": 5 },
+        "explanation": "DECR removes one. Numbers go down the same way they go up."
+      }
+    ]
+  },
+  {
+    "id": "mv-expire-ttl",
+    "title": "Time Limits",
+    "region": "memory-village",
+    "difficulty": "beginner",
+    "description": "Learn to set a timer on a key with EXPIRE and check it with TTL.",
+    "skippable": true,
+    "steps": [
+      {
+        "id": "set-torch",
+        "objective": "Light a torch: SET torch lit",
+        "hint": "Type SET torch lit to create a key called torch.",
+        "validate": { "command": "SET", "keyPattern": "torch" },
+        "reward": { "xp": 5 },
+        "explanation": "You made a key called torch with the value lit."
+      },
+      {
+        "id": "expire-torch",
+        "objective": "Give it a timer: EXPIRE torch 60",
+        "hint": "Type EXPIRE torch 60 to start a 60-second timer.",
+        "validate": { "command": "EXPIRE", "keyPattern": "torch" },
+        "reward": { "xp": 5 },
+        "explanation": "EXPIRE sets a countdown. When it hits zero, the key goes away."
+      },
+      {
+        "id": "ttl-torch",
+        "objective": "Check the timer: TTL torch",
+        "hint": "Type TTL torch to see how many seconds remain.",
+        "validate": { "command": "TTL", "keyPattern": "torch" },
+        "reward": { "xp": 5 },
+        "explanation": "TTL shows the seconds left. It counts down in real time."
+      }
+    ]
+  },
+  {
+    "id": "mv-del-exists",
+    "title": "Delete and Check",
+    "region": "memory-village",
+    "difficulty": "beginner",
+    "description": "Learn to remove a key with DEL and check with EXISTS.",
+    "skippable": true,
+    "steps": [
+      {
+        "id": "set-temp",
+        "objective": "Store a value: SET temp hello",
+        "hint": "Type SET temp hello.",
+        "validate": { "command": "SET", "keyPattern": "temp" },
+        "reward": { "xp": 3 },
+        "explanation": "You stored a value. Now let us erase it."
+      },
+      {
+        "id": "exists-temp",
+        "objective": "Check if it exists: EXISTS temp",
+        "hint": "Type EXISTS temp.",
+        "validate": { "command": "EXISTS", "keyPattern": "temp" },
+        "reward": { "xp": 3 },
+        "explanation": "EXISTS returns 1 if the key is there, 0 if it is not."
+      },
+      {
+        "id": "del-temp",
+        "objective": "Delete the key: DEL temp",
+        "hint": "Type DEL temp.",
+        "validate": { "command": "DEL", "keyPattern": "temp" },
+        "reward": { "xp": 5 },
+        "explanation": "DEL removes a key for good. Gone forever."
+      }
+    ]
+  },
+  {
+    "id": "mv-hash-basics",
+    "title": "Profiles and Fields",
+    "region": "hash-city",
+    "difficulty": "beginner",
+    "description": "Learn HSET and HGET by building a hero profile.",
+    "skippable": true,
+    "steps": [
+      {
+        "id": "hset-hero",
+        "objective": "Build a hero: HSET hero:1 name Alex hp 100",
+        "hint": "Type HSET hero:1 name Alex hp 100.",
+        "validate": { "command": "HSET", "keyPattern": "hero" },
+        "reward": { "xp": 5 },
+        "explanation": "HSET stores fields under one key."
+      },
+      {
+        "id": "hget-hero",
+        "objective": "Read a field: HGET hero:1 hp",
+        "hint": "Type HGET hero:1 hp.",
+        "validate": { "command": "HGET", "keyPattern": "hero" },
+        "reward": { "xp": 5 },
+        "explanation": "HGET reads one field from the hash."
+      },
+      {
+        "id": "hgetall-hero",
+        "objective": "See everything: HGETALL hero:1",
+        "hint": "Type HGETALL hero:1.",
+        "validate": { "command": "HGETALL", "keyPattern": "hero" },
+        "reward": { "xp": 5 },
+        "explanation": "HGETALL shows every field and value at once."
+      }
+    ]
+  },
+  {
+    "id": "mv-list-basics",
+    "title": "Queues and Lines",
+    "region": "list-harbor",
+    "difficulty": "beginner",
+    "description": "Learn LPUSH and LRANGE by building a queue.",
+    "skippable": true,
+    "steps": [
+      {
+        "id": "lpush-enemies",
+        "objective": "Push an enemy: LPUSH enemies Goblin",
+        "hint": "Type LPUSH enemies Goblin.",
+        "validate": { "command": "LPUSH", "keyPattern": "enemies" },
+        "reward": { "xp": 5 },
+        "explanation": "LPUSH adds to the left end of a list."
+      },
+      {
+        "id": "rpush-enemies",
+        "objective": "Push from the other side: RPUSH enemies Dragon",
+        "hint": "Type RPUSH enemies Dragon.",
+        "validate": { "command": "RPUSH", "keyPattern": "enemies" },
+        "reward": { "xp": 5 },
+        "explanation": "RPUSH adds to the right end. Two sides, one list."
+      },
+      {
+        "id": "lrange-enemies",
+        "objective": "See the list: LRANGE enemies 0 -1",
+        "hint": "Type LRANGE enemies 0 -1 to see all items.",
+        "validate": { "command": "LRANGE", "keyPattern": "enemies" },
+        "reward": { "xp": 5 },
+        "explanation": "LRANGE shows items in order. 0 to -1 means all."
+      }
+    ]
+  },
+  {
+    "id": "mv-set-basics",
+    "title": "Unique Collections",
+    "region": "set-caverns",
+    "difficulty": "beginner",
+    "description": "Learn SADD and SMEMBERS by building a party.",
+    "skippable": true,
+    "steps": [
+      {
+        "id": "sadd-party",
+        "objective": "Add party members: SADD party Mage Warrior",
+        "hint": "Type SADD party Mage Warrior.",
+        "validate": { "command": "SADD", "keyPattern": "party" },
+        "reward": { "xp": 5 },
+        "explanation": "SADD adds unique members to a set. No duplicates."
+      },
+      {
+        "id": "smembers-party",
+        "objective": "See the set: SMEMBERS party",
+        "hint": "Type SMEMBERS party.",
+        "validate": { "command": "SMEMBERS", "keyPattern": "party" },
+        "reward": { "xp": 5 },
+        "explanation": "SMEMBERS shows everything in the set."
+      }
+    ]
+  },
+  {
+    "id": "mv-zset-basics",
+    "title": "Ranked Scores",
+    "region": "leaderboard-arena",
+    "difficulty": "beginner",
+    "description": "Learn ZADD and ZRANGE by building a leaderboard.",
+    "skippable": true,
+    "steps": [
+      {
+        "id": "zadd-scores",
+        "objective": "Add a score: ZADD scores 100 Alex",
+        "hint": "Type ZADD scores 100 Alex.",
+        "validate": { "command": "ZADD", "keyPattern": "scores" },
+        "reward": { "xp": 5 },
+        "explanation": "ZADD adds a member with a score. The score decides rank."
+      },
+      {
+        "id": "zrange-scores",
+        "objective": "See the board: ZRANGE scores 0 -1",
+        "hint": "Type ZRANGE scores 0 -1.",
+        "validate": { "command": "ZRANGE", "keyPattern": "scores" },
+        "reward": { "xp": 5 },
+        "explanation": "ZRANGE shows members from lowest to highest score."
+      }
+    ]
+  }
+]
