@@ -149,8 +149,8 @@ export const INFO = cmd({
         `total_commands_processed:${engine.stats.totalCommands}\r\n` +
         `total_errors_received:${engine.stats.totalErrors}\r\n` +
         `instantaneous_ops_per_sec:${Math.round(engine.stats.opsPerSecond)}\r\n` +
-        'keyspace_hits:0\r\n' +
-        'keyspace_misses:0\r\n' +
+        `keyspace_hits:${engine.stats.keyspaceHits}\r\n` +
+        `keyspace_misses:${engine.stats.keyspaceMisses}\r\n` +
         `used_memory_peak:${engine.stats.memoryPeak}\r\n`
     )
   }

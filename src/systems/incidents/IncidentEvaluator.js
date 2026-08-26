@@ -2,6 +2,8 @@
  * Objective evaluator that inspects live MockRedisEngine store state.
  */
 
+import { makeGlobMatcher } from '../../engine/datatypes/glob.js'
+
 export function evaluatePredicate(pred, engine) {
   if (!pred || typeof pred !== 'object' || !engine) return false
 
@@ -82,6 +84,66 @@ export function evaluatePredicate(pred, engine) {
         return Boolean(pred.check(engine))
       }
       return false
+    }
+
+    case 'streamLengthAbove': {
+      const entry = engine._get(pred.key)
+      if (!entry || entry.type !== 'stream' || !entry.value) return false
+      return entry.value.length > pred.min
+    }
+
+    case 'streamLengthBelow': {
+      const entry = engine._get(pred.key)
+      if (!entry || entry.type !== 'stream' || !entry.value) return 0 < pred.max
+      return entry.value.length < pred.max
+    }
+
+    case 'pendingCountBelow': {
+      const entry = engine._get(pred.key)
+      if (!entry || entry.type !== 'stream' || !entry.value) return 0 < pred.max
+      const group = entry.value.groups.get(pred.group)
+      const pendingCount = group ? group.pel.size : 0
+      return pendingCount < pred.max
+    }
+
+    case 'consumerGroupExists': {
+      const entry = engine._get(pred.key)
+      if (!entry || entry.type !== 'stream' || !entry.value) return false
+      return entry.value.groups.has(pred.group)
+    }
+
+    case 'hitRatioAbove': {
+      return engine.hitRatio() > pred.min
+    }
+
+    case 'memoryBelowRatio': {
+      if (!engine.memoryLimit) return false
+      return engine.memoryBytes / engine.memoryLimit < pred.max
+    }
+
+    case 'keyCountBelow': {
+      return engine.store.size < pred.max
+    }
+
+    case 'allKeysHaveTtl': {
+      const matcher = makeGlobMatcher(pred.pattern)
+      for (const [key, entry] of engine.store) {
+        if (!matcher(key)) continue
+        if (entry.expiresAt === null) return false
+      }
+      return true
+    }
+
+    case 'lockHeldWithFence': {
+      const entry = engine._get(pred.key)
+      if (!entry || entry.type !== 'string' || entry.value === null) return false
+      const fence = Number(entry.value)
+      if (!Number.isFinite(fence)) return false
+      return fence >= pred.minFence
+    }
+
+    case 'evictionCountBelow': {
+      return (engine.stats.keysEvicted ?? 0) < pred.max
     }
 
     default:

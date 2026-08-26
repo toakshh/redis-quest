@@ -3,6 +3,7 @@ import {
   okReply,
   bulkReply,
   nilReply,
+  blockedReply,
   integerReply,
   arrayReply,
   emptyArrayReply,
@@ -369,11 +370,16 @@ export const BRPOP = cmd({
 })((engine, args) => blockingPop(engine, args, 'RPOP'))
 
 function blockingPop(engine, args, popCommand) {
-  // In our synchronous mock, we don't truly block. We just try each key in order
-  // and return the first non-empty result (like a non-blocking pop with timeout=0).
-  // The last argument is the timeout, but we ignore it for now.
+  // Our sim is synchronous — we can't truly block the event loop. Instead we
+  // try each key in order like a non-blocking pop, and if nothing is
+  // available we return a 'blocked' reply describing which keys would
+  // unblock this call and when it times out (null timeoutAt = forever).
+  // The sim layer renders that as the player being physically locked in
+  // place, so BLPOP key 0 is a real, felt trap — not a free action.
   const keys = args.slice(1, -1)
-  const timeout = args[args.length - 1] // unused in mock
+  const timeoutArg = args[args.length - 1]
+  const timeoutSeconds = intValue(timeoutArg)
+  if (timeoutSeconds === null || timeoutSeconds < 0) return invalidInt(timeoutArg)
 
   for (const key of keys) {
     const entry = engine._get(key)
@@ -397,8 +403,9 @@ function blockingPop(engine, args, popCommand) {
     }
   }
 
-  // No elements available - in real Redis this would block, but we return nil
-  return nilReply()
+  // No elements available on any key: block.
+  const timeoutAt = timeoutSeconds === 0 ? null : engine.now() + timeoutSeconds * 1000
+  return blockedReply(keys, timeoutAt)
 }
 
 // Add iterator support to LinkedList for LINSERT

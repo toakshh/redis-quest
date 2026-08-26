@@ -16,6 +16,14 @@
 // `used_memory` = sum over keys of KEY_ENTRY + structure bytes.
 // Long strings > 64 bytes are embeeded/dict-charged differently in real
 // Redis; we simplify: everything above counts value bytes.
+//
+// streamBytes is imported from Stream.js, which itself imports utf8Bytes
+// from this module — a circular import that is safe here because both
+// sides use the imported binding only inside function bodies, never at
+// module-evaluation time, so ES module live bindings resolve correctly
+// regardless of which file loads first.
+
+import { streamBytes } from './Stream.js'
 
 export const MEMORY_CONSTANTS = {
   KEY_ENTRY: 48,
@@ -24,6 +32,8 @@ export const MEMORY_CONSTANTS = {
   SET_MEMBER: 56,
   ZSET_NODE: 128,
   ZSET_SCORE: 16,
+  STREAM_ENTRY: 64,
+  STREAM_PEL_ENTRY: 48,
   DEFAULT_MEMORY_LIMIT: 10 * 1024 * 1024, // 10 MB default "maxmemory"
 }
 
@@ -92,6 +102,8 @@ export function valueMemoryBytes(type, value) {
       return setBytes(value)
     case 'zset':
       return zsetBytes(value)
+    case 'stream':
+      return streamBytes(value)
     default:
       return 0
   }
