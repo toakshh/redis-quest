@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { SimProvider } from './SimProvider.jsx'
+import { ScareAudio } from './audio/ScareAudio.jsx'
 import LevelGeometry from './level/LevelGeometry.jsx'
 import Terminals from './level/Terminals.jsx'
 import Hostiles from './entities/Hostiles.jsx'
@@ -117,6 +118,7 @@ export default function Scene({
 
       <PointerLock requested={lockRequested} onChange={onLockChange} />
       <Flashlight />
+      <ScareAudio />
       <LevelGeometry level={level} />
       <Terminals onNearestChange={onNearestTerminal} />
       <Hostiles />

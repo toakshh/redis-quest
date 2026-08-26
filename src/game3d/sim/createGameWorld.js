@@ -22,6 +22,8 @@ import { createTtlLifeSystem } from './systems/TtlLifeSystem.js'
 import { createMemoryPressureSystem } from './systems/MemoryPressureSystem.js'
 import { createLatencySystem } from './systems/LatencySystem.js'
 import { createObjectiveSystem } from './systems/ObjectiveSystem.js'
+import { createDirectorSystem } from './systems/DirectorSystem.js'
+import { createScareSystem } from './systems/ScareSystem.js'
 import { createRedisActionBridge } from './redis/RedisActionBridge.js'
 import { CH1_LEVEL } from '../content/chapters/ch1/level.js'
 
@@ -62,6 +64,8 @@ export function createGameWorld({ seed = 'protocol-zero', level = CH1_LEVEL, now
   const memoryPressure = createMemoryPressureSystem()
   const latency = createLatencySystem()
   const objectives = createObjectiveSystem({ objectives: level.objectives })
+  const director = createDirectorSystem()
+  const scare = createScareSystem()
 
   world.addSystem(bridge)
   world.addSystem(movement)
@@ -73,6 +77,13 @@ export function createGameWorld({ seed = 'protocol-zero', level = CH1_LEVEL, now
   world.addSystem(memoryPressure)
   world.addSystem(latency)
   world.addSystem(objectives)
+  world.addSystem(director)
+  world.addSystem(scare)
+
+  // Track damage times for the Director
+  world.bus.on('sim:damage', () => {
+    world.lastDamageMs = world.clock()
+  })
 
   // --- Entities.
   const spawn = level.spawnPoints.find((s) => s.id === 'player_start')
@@ -134,7 +145,7 @@ export function createGameWorld({ seed = 'protocol-zero', level = CH1_LEVEL, now
     level,
     playerId,
     enemyIds,
-    systems: { bridge, movement, collision, ai, combat, threat, ttlLife, memoryPressure, latency, objectives },
+    systems: { bridge, movement, collision, ai, combat, threat, ttlLife, memoryPressure, latency, objectives, director, scare },
 
     // Queue a raw Redis command line from the player. Returns nothing — the
     // result arrives on the bus as 'sim:commandResult' next tick, so the UI

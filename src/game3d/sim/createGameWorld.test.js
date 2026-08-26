@@ -59,7 +59,7 @@ describe('createGameWorld — world construction', () => {
     const { game } = newGame()
     const orders = game.world.systems.map((s) => s.order)
     expect(orders).toEqual([...orders].sort((a, b) => a - b))
-    expect(game.world.systems.length).toBe(10)
+    expect(game.world.systems.length).toBe(12)
   })
 
   it('marks the stalker unkillable and the crawlers not', () => {

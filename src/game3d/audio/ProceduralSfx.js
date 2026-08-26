@@ -20,6 +20,25 @@ export function playProceduralSfx(audioCtx, destinationNode, soundId) {
     // Quiet, breathy noise sweep
     playNoiseSweep(audioCtx, destinationNode, time, 1.5, 400, 1200)
   }
+  else if (soundId === 'sfx_glitch') {
+    playNoiseBurst(audioCtx, destinationNode, time, 0.1, 'bandpass', 1500)
+    playPitchedDrop(audioCtx, destinationNode, time, 'sawtooth', 200, 250, 0.1)
+    playPitchedDrop(audioCtx, destinationNode, time, 'square', 400, 300, 0.15)
+  }
+  else if (soundId === 'sfx_resident_deleted') {
+    playPitchedDrop(audioCtx, destinationNode, time, 'sine', 100, 20, 1.0)
+    playNoiseSweep(audioCtx, destinationNode, time, 0.5, 2000, 500)
+  }
+  else if (soundId === 'sfx_relief_punish') {
+    playPitchedDrop(audioCtx, destinationNode, time, 'sine', 400, 400, 0.2) // calm initial tone
+    playPitchedDrop(audioCtx, destinationNode, time + 0.2, 'sawtooth', 300, 50, 0.5) // punishment
+    playNoiseBurst(audioCtx, destinationNode, time + 0.2, 0.6, 'lowpass', 500)
+  }
+  else if (soundId === 'sfx_evictor_reveal') {
+    playPitchedDrop(audioCtx, destinationNode, time, 'sawtooth', 80, 40, 2.0)
+    playPitchedDrop(audioCtx, destinationNode, time, 'square', 82, 42, 2.0)
+    playNoiseSweep(audioCtx, destinationNode, time, 2.0, 100, 1000)
+  }
   else if (soundId.startsWith('sfx_ui_')) {
     // Standard UI blip
     playPitchedDrop(audioCtx, destinationNode, time, 'sine', 600, 600, 0.1)

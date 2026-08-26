@@ -28,28 +28,31 @@ export default function PostChain() {
   useFrame((state, delta) => {
     const t = state.clock.elapsedTime
 
-    // 1. Chromatic Aberration ∝ damage + latency
-    // In our sim, world.latencyP99Ms is tracked. Hit stop / damage flashes might be hard to read directly unless we look at hitStopUntilMs.
-    const isHitStopped = world.hitStopUntilMs && world.clock() < world.hitStopUntilMs
-    // CA amplitude based on latency, up to max at ~100ms
-    const latencyFactor = Math.min((world.latencyP99Ms || 0) / 100, 1)
-    const caOffset = isHitStopped ? 0.05 : 0.002 + (latencyFactor * 0.015)
-
-    if (caRef.current && caRef.current.offset) {
-      caRef.current.offset.x = caOffset
-      caRef.current.offset.y = caOffset
-    }
-
-    // 2. Glitch on eviction events
+    // 2. Glitch on eviction events and scares
     const evictions = runtime.engine.stats?.evictedKeys || 0
     if (evictions > lastEvictions.current) {
       // Eviction happened! Start a quick glitch
       glitchUntil.current = t + 0.3 // 300ms glitch
       lastEvictions.current = evictions
     }
+    const isScared = world.scareFlash && world.scareFlash > 0
+    if (isScared) {
+      glitchUntil.current = Math.max(glitchUntil.current, t + 0.1) // Keep glitching while scared
+    }
     if (glitchRef.current) {
       const isGlitching = t < glitchUntil.current
       glitchRef.current.mode = isGlitching ? GlitchMode.SPORADIC : GlitchMode.DISABLED
+    }
+
+    // 1. Chromatic Aberration ∝ damage + latency + scare
+    const isHitStopped = world.hitStopUntilMs && world.clock() < world.hitStopUntilMs
+    const latencyFactor = Math.min((world.latencyP99Ms || 0) / 100, 1)
+    let caOffset = isHitStopped ? 0.05 : 0.002 + (latencyFactor * 0.015)
+    if (isScared) caOffset += world.scareFlash * 0.04
+
+    if (caRef.current && caRef.current.offset) {
+      caRef.current.offset.x = caOffset
+      caRef.current.offset.y = caOffset
     }
 
     // 3. Noise/Grain ∝ 1 - hitRatio
@@ -57,7 +60,7 @@ export default function PostChain() {
     const hitRatio = runtime.engine.hitRatio ? runtime.engine.hitRatio() : 1
     const grainOpacity = 1 - hitRatio
     if (noiseRef.current && noiseRef.current.blendMode) {
-      noiseRef.current.blendMode.opacity.value = Math.max(0.05, grainOpacity) // always slight noise
+      noiseRef.current.blendMode.opacity.value = Math.max(0.05, isScared ? grainOpacity + world.scareFlash * 0.5 : grainOpacity) // jump scare noise
     }
 
     // 4. Vignette ∝ remaining timer
