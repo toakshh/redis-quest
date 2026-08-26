@@ -7,6 +7,11 @@ import Scene from './Scene.jsx'
 import Hud from './hud/Hud.jsx'
 import CommandConsole from './hud/CommandConsole.jsx'
 
+import CardComposer from './hud/CardComposer.jsx'
+import DebriefCard from './hud/DebriefCard.jsx'
+import FieldManualPanel from './hud/FieldManualPanel.jsx'
+import RexChannel from './hud/RexChannel.jsx'
+
 // The 3D mode's root. Owns the game instance, the pointer-lock state machine,
 // and the DOM-side overlays; everything inside the GL canvas lives in Scene.
 
@@ -36,6 +41,9 @@ export default function Game3DRoot({ seed, onExit }) {
   const [history, setHistory] = useState([])
   const [lastResult, setLastResult] = useState(null)
   const [outcome, setOutcome] = useState(null) // null | 'dead' | 'won'
+  
+  const [isManualOpen, setIsManualOpen] = useState(false)
+  const [activeDebrief, setActiveDebrief] = useState(null)
 
   // Dispose exactly once, on real unmount.
   useEffect(() => {
@@ -49,12 +57,18 @@ export default function Game3DRoot({ seed, onExit }) {
 
   // Command results drive the receipt line and the console log.
   useEffect(() => {
-    const off = game.runtime.bus.on('sim:commandResult', ({ intent, reply }) => {
+    const off1 = game.runtime.bus.on('sim:commandResult', ({ intent, reply }) => {
       const formatted = { line: intent.line, ...formatReply(reply) }
       setLastResult(formatted)
       setHistory((h) => [...h.slice(-40), formatted])
     })
-    return typeof off === 'function' ? off : undefined
+    const off2 = game.runtime.bus.on('sim:debrief', (data) => {
+      setActiveDebrief(data)
+    })
+    return () => {
+      off1 && off1()
+      off2 && off2()
+    }
   }, [game])
 
   // Fade the receipt out so it does not sit on screen forever.
@@ -84,8 +98,8 @@ export default function Game3DRoot({ seed, onExit }) {
 
   // The console must own the pointer while it is open.
   useEffect(() => {
-    setLockRequested(entered && !consoleOpen && outcome === null)
-  }, [entered, consoleOpen, outcome])
+    setLockRequested(entered && !consoleOpen && outcome === null && !isManualOpen && !activeDebrief)
+  }, [entered, consoleOpen, outcome, isManualOpen, activeDebrief])
 
   const openConsole = useCallback(() => {
     setConsoleOpen(true)
@@ -100,15 +114,23 @@ export default function Game3DRoot({ seed, onExit }) {
   useEffect(() => {
     function onKeyDown(e) {
       if (outcome) return
+      if (activeDebrief) return // Lock interaction during debrief
       if (e.code === 'KeyE' || e.code === 'KeyT' || e.code === 'Slash') {
-        if (!consoleOpen) { e.preventDefault(); openConsole() }
+        if (!consoleOpen && !isManualOpen) { e.preventDefault(); openConsole() }
+      } else if (e.code === 'KeyM') {
+        if (!consoleOpen) { e.preventDefault(); setIsManualOpen(prev => !prev) }
+      } else if (e.code === 'KeyH') {
+        if (game.world.teachingLayer?.requestHint) {
+          game.world.teachingLayer.requestHint()
+        }
       } else if (e.code === 'Escape') {
         if (consoleOpen) setConsoleOpen(false)
+        if (isManualOpen) setIsManualOpen(false)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [consoleOpen, openConsole, outcome])
+  }, [consoleOpen, isManualOpen, openConsole, outcome, activeDebrief, game])
 
   const submitCommand = useCallback((line) => {
     game.submitCommand(line)
@@ -142,13 +164,25 @@ export default function Game3DRoot({ seed, onExit }) {
           runtime={game.runtime}
           world={game.world}
           level={game.level}
-          active={entered && !consoleOpen && outcome === null}
+          active={entered && !consoleOpen && !isManualOpen && !activeDebrief && outcome === null}
           locked={locked}
           lockRequested={lockRequested}
           onLockChange={setLocked}
           onNearestTerminal={setNearTerminal}
+          onFire={submitCommand}
         />
       </Canvas>
+
+      <RexChannel world={game.world} level={game.level} />
+      <CardComposer world={game.world} onFire={submitCommand} />
+      <FieldManualPanel world={game.world} isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
+      {activeDebrief && (
+        <DebriefCard 
+          world={game.world} 
+          debriefData={activeDebrief} 
+          onDismiss={() => setActiveDebrief(null)} 
+        />
+      )}
 
       <Hud
         world={game.world}

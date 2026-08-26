@@ -14,20 +14,20 @@ vi.mock('../../config/feel.js', () => ({
 
 const mockWorld = { timeScale: 1 }
 
-vi.mock('../SimProvider.jsx', () => ({
-  useSim: () => ({
-    world: mockWorld
-  })
-}))
-
 describe('CardComposer', () => {
+  let originalTimeScale = 1
+  beforeEach(() => {
+    mockWorld.timeScale = 1
+    originalTimeScale = 1
+  })
+
   it('1. Renders nothing or closed state by default', () => {
-    const { queryByTestId } = render(<CardComposer />)
+    const { queryByTestId } = render(<CardComposer world={mockWorld} />)
     expect(queryByTestId('card-composer')).toBeNull()
   })
 
   it('2. RMB down opens the composer and slows time', () => {
-    const { getByTestId } = render(<CardComposer />)
+    const { getByTestId } = render(<CardComposer world={mockWorld} />)
 
     expect(mockWorld.timeScale).toBe(1)
 
@@ -39,14 +39,14 @@ describe('CardComposer', () => {
   })
 
   it('3. Displays assembled command', () => {
-    const { getByTestId } = render(<CardComposer />)
+    const { getByTestId } = render(<CardComposer world={mockWorld} />)
     fireEvent.mouseDown(window, { button: 2 })
     expect(getByTestId('assembled-string').textContent).toBe('SET key value')
   })
 
   it('4. RMB up closes, restores timeScale, calls onFire', () => {
     const onFire = vi.fn()
-    const { queryByTestId } = render(<CardComposer onFire={onFire} />)
+    const { queryByTestId } = render(<CardComposer world={mockWorld} onFire={onFire} />)
 
     // Open
     fireEvent.mouseDown(window, { button: 2 })

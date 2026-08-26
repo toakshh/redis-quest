@@ -25,6 +25,14 @@ import { createObjectiveSystem } from './systems/ObjectiveSystem.js'
 import { createRedisActionBridge } from './redis/RedisActionBridge.js'
 import { CH1_LEVEL } from '../content/chapters/ch1/level.js'
 
+import { createRecallGate } from './teaching/RecallGate.js'
+import { createLadderState } from './teaching/LadderState.js'
+import { createVocabularyLadder } from './teaching/VocabularyLadder.js'
+import { createDebriefQueue } from './teaching/DebriefQueue.js'
+import { createFieldManual } from './teaching/FieldManual.js'
+import { VOCABULARY } from '../content/vocabulary.js'
+import { CH1_DEBRIEFS } from '../content/chapters/ch1/debriefs.js'
+
 export const PLAYER_KEY = 'session:7742'
 
 // The session starts with 90 seconds of life. Long enough to explore, short
@@ -62,6 +70,25 @@ export function createGameWorld({ seed = 'protocol-zero', level = CH1_LEVEL, now
   const memoryPressure = createMemoryPressureSystem()
   const latency = createLatencySystem()
   const objectives = createObjectiveSystem({ objectives: level.objectives })
+
+  // --- Teaching Systems ---
+  const fieldManual = createFieldManual()
+  const ladderState = createLadderState({ currentChapter: 1 })
+  const vocabLadder = createVocabularyLadder(VOCABULARY)
+  const debriefQueue = createDebriefQueue({ debriefData: CH1_DEBRIEFS, fieldManual })
+
+  const teachingLayer = {
+    fieldManual,
+    ladderState,
+    vocabLadder,
+    debriefQueue,
+    requestHint() {
+      // Simulate tier lookup logic based on current interaction state
+      // For now, emits an un-degraded basic hint for the player objective
+      runtime.bus.emit('sim:hint', { text: "Use PROBE to check the timer on that key.", tier: 1 })
+    }
+  }
+  world.teachingLayer = teachingLayer
 
   world.addSystem(bridge)
   world.addSystem(movement)

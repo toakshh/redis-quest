@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { useSim } from '../SimProvider.jsx'
 import { FEEL } from '../../config/feel.js'
 
-export default function CardComposer({ onFire }) {
+export default function CardComposer({ world, onFire }) {
   const [isOpen, setIsOpen] = useState(false)
   const [commandTokens, setCommandTokens] = useState(['SET', 'key', 'value']) // Dummy default for testing interaction
-  const { world } = useSim()
 
   useEffect(() => {
     function handleMouseDown(e) {

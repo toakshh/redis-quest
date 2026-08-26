@@ -6,10 +6,6 @@ import DebriefCard from './DebriefCard.jsx'
 
 const mockWorld = { timeScale: 1 }
 
-vi.mock('../SimProvider.jsx', () => ({
-  useSim: () => ({ world: mockWorld })
-}))
-
 describe('DebriefCard', () => {
   const mockData = {
     whatHappened: 'A',
@@ -21,7 +17,7 @@ describe('DebriefCard', () => {
   }
 
   it('1. Renders all six fields', () => {
-    const { getByTestId } = render(<DebriefCard debriefData={mockData} onDismiss={() => {}} />)
+    const { getByTestId } = render(<DebriefCard world={mockWorld} debriefData={mockData} onDismiss={() => {}} />)
     expect(getByTestId('f1').textContent).toBe('A')
     expect(getByTestId('f2').textContent).toBe('B')
     expect(getByTestId('f3').textContent).toBe('C')
@@ -32,14 +28,14 @@ describe('DebriefCard', () => {
 
   it('2. Sets timeScale to 0 on mount', () => {
     mockWorld.timeScale = 1
-    render(<DebriefCard debriefData={mockData} onDismiss={() => {}} />)
+    render(<DebriefCard world={mockWorld} debriefData={mockData} onDismiss={() => {}} />)
     expect(mockWorld.timeScale).toBe(0)
   })
 
   it('3. Restores timeScale and calls onDismiss when dismissed', () => {
     mockWorld.timeScale = 1
     const onDismiss = vi.fn()
-    const { getByTestId, unmount } = render(<DebriefCard debriefData={mockData} onDismiss={onDismiss} />)
+    const { getByTestId, unmount } = render(<DebriefCard world={mockWorld} debriefData={mockData} onDismiss={onDismiss} />)
 
     fireEvent.click(getByTestId('btn-dismiss'))
     expect(onDismiss).toHaveBeenCalled()

@@ -1,9 +1,6 @@
 import React, { useEffect } from 'react'
-import { useSim } from '../SimProvider.jsx'
 
-export default function DebriefCard({ debriefData, onDismiss }) {
-  const { world } = useSim()
-
+export default function DebriefCard({ world, debriefData, onDismiss }) {
   useEffect(() => {
     let originalTimeScale = 1
     if (world) {
