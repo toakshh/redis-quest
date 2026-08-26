@@ -6,6 +6,7 @@ import { playProceduralSfx } from '../../audio/ProceduralSfx.js'
 
 export function ScareAudio() {
   const { world } = useSim()
+  const tickRef = useRef(-1)
   const directorRef = useRef(null)
   
   useEffect(() => {
@@ -25,15 +26,16 @@ export function ScareAudio() {
     if (!directorRef.current) return
     const dir = directorRef.current
     
-    // Process scare events
-    if (world.scareEvents && world.scareEvents.length > 0) {
-      for (const ev of world.scareEvents) {
-        if (ev.type === 'scare') {
-          playProceduralSfx(dir.ctx, dir.buses.scare, ev.soundId)
-          // Add some screen shake or FOV change? This runs every frame so we can just trigger audio here.
+    // Process scare events if we are on a new tick
+    if (world.tick !== tickRef.current) {
+      tickRef.current = world.tick
+      if (world.scareEvents && world.scareEvents.length > 0) {
+        for (const ev of world.scareEvents) {
+          if (ev.type === 'scare') {
+            playProceduralSfx(dir.ctx, dir.buses.scare, ev.soundId)
+          }
         }
       }
-      world.scareEvents.length = 0 // Clear them once processed
     }
 
     // Audio drop logic

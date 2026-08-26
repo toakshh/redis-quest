@@ -3,19 +3,23 @@ import { createScareDirector } from '../horror/ScareDirector.js'
 import { SCARE_TYPES } from '../horror/scareTypes.js'
 
 export function createScareSystem() {
-  const scareDirector = createScareDirector()
+  let scareDirector = null
   let initialized = false
 
   return {
     name: 'scare',
     order: SYSTEM_ORDER.SCARE,
-    scareDirector,
+    get scareDirector() { return scareDirector },
 
     update(world, dt) {
       if (!world.scareEvents) {
         world.scareEvents = []
       }
       world.scareEvents.length = 0
+
+      if (!scareDirector) {
+        scareDirector = createScareDirector({ rng: world.rng })
+      }
 
       const clockMs = world.clock()
       
