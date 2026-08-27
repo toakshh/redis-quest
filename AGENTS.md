@@ -16,6 +16,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Uses Web Audio API for SFX and procedural chiptune BGM.
 - Subscribes to `gameStore` for audio settings (toggles, volume).
 - Initialized in `App.jsx`.
+- Note: 3D Mode manages its own 3D audio via `src/game3d/audio/AudioDirector.js` and `ProceduralSfx.js` rather than `SoundEngine.js`.
 
 ## Inventory & Chest System
 - Inventory modal in `src/components/InventoryModal.jsx` (toggled via `I` hotkey or HUD button).
@@ -40,3 +41,20 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Consequence events handled via `src/systems/consequences/ConsequenceEngine.js`.
 - Dynamic visual world states (API Gate, Cache Corruption, Shield Expiry, Queue Conveyor) resolved via `src/systems/consequences/WorldStateResolver.js`.
 - Rendered in `src/components/GameCanvas.jsx` using `src/game/IsometricRenderer.js`.
+
+## Streams, Eviction & Latency
+- Streams in `src/engine/datatypes/Stream.js` (`StreamId`, `RedisStream`, `ConsumerGroup`) and `src/engine/commands/streams.js`.
+- Eviction policies in `src/engine/eviction.js`; `engine.maxmemoryPolicy` drives `engine.maybeEvict()`, called once per command.
+- Per-command cost model in `src/engine/latency.js`; read latency from `engine.lastCommandCostMs` or the `command` event's `costMs`.
+- Real hit/miss stats via `engine._readIntent` (see `engine.hitRatio()`); blocking commands (`BLPOP`/`BZPOPMIN`) return `{ type: 'blocked', resumeOn, timeoutAt }`, not nil.
+
+## 3D Mode (Protocol Zero)
+- Lives entirely under `src/game3d/`, lazy-loaded from `App.jsx` via `React.lazy`. Never shares state with the 2D game — see `claude-plan-pro.md` section 5 and `pro-instruct.md` Laws L3-L6.
+- Owns its own engine/store/save namespace: `src/game3d/bootstrap.js` (`createRuntime()`), `src/game3d/state/game3dStore.js`, `src/game3d/state/persistence3d.js` (`redis-quest:3d:` prefix).
+- Build sequence and every task's exact contract: `pro-instruct.md`. Progress tracked in `BUILD-STATUS.md`.
+- Entry chain: `index.js` → `view/Game3DRoot.jsx` → `view/Scene.jsx`. The whole game is assembled headlessly by `sim/createGameWorld.js`; the view only reads it.
+- Level geometry is generated from boxes in `content/chapters/ch1/level.js` — no `.glb` asset exists or is needed. The sim collides against the *same* collider list the view draws.
+- Physics is `sim/systems/CollisionSystem.js` (cylinder-vs-AABB), deliberately not Rapier: the determinism gate needs bit-identical replays, which a WASM solver with internal state cannot give.
+- 3D audio and scare stingers are processed via `view/audio/ScareAudio.jsx`. Audio node state updates must check last-state reference flags to avoid busy-scheduling every frame.
+- Never put `data-testid` on a three.js element — R3F forwards it onto the object as `data.testid` and throws. Assert the scene with `@react-three/test-renderer` (see `__tests__/playable.test.jsx`).
+- Three.js r171 uses physical light units: point/spot intensities are in the hundreds, not single digits.

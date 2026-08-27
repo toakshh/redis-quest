@@ -1,0 +1,69 @@
+{
+  "region": "string-forest",
+  "name": "String Forest",
+  "intro": [
+    "Vines grow by joining words together.",
+    "In this forest, strings grow and shrink.",
+    "Every vine here is one long string."
+  ],
+  "hints": {
+    "1": [
+      "The vines stretch and wrap.",
+      "A vine grows at one end.",
+      "How long is that vine, I wonder?",
+      "Two vines want to become one."
+    ],
+    "2": [
+      "You can add to a string.",
+      "A string knows its own length.",
+      "One string can grow by another.",
+      "Length is a property of a string."
+    ],
+    "3": [
+      "Try: APPEND <key> <value>",
+      "Try: STRLEN <key>",
+      "Try: GETSET <key> <value>",
+      "Try: MSET <key> <value> <key> <value>"
+    ],
+    "4": [
+      "APPEND spell \"fire\"",
+      "STRLEN spell",
+      "GETSET counter 100",
+      "MSET a 1 b 2 c 3"
+    ]
+  },
+  "reactions": {
+    "ok": [
+      "The vine grows a bit more.",
+      "The string stretches. Nice.",
+      "That added to the thread."
+    ],
+    "error": [
+      "That vine does not stretch that way.",
+      "The forest rustles. Not that.",
+      "A tangle. Try again."
+    ]
+  },
+  "personality": {
+    "curiosity": [
+      "Keep adding. Where does it end?",
+      "I wonder how long you can make it.",
+      "Every append changes the whole vine."
+    ],
+    "humor": [
+      "That string has grown a belly.",
+      "One more append and it might trip.",
+      "I once knew a string this long. It got lonely."
+    ],
+    "wisdom": [
+      "Small adds build a long rope.",
+      "Length is not a mystery — ask the vine.",
+      "Strings grow one piece at a time."
+    ],
+    "sternness": [
+      "Quit admiring it. Append something.",
+      "A vine with no name grows nowhere.",
+      "STRLEN needs a real key."
+    ]
+  }
+}

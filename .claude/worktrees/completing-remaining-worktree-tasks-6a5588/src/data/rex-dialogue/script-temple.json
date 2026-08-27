@@ -1,0 +1,67 @@
+{
+  "region": "script-temple",
+  "name": "Script Temple",
+  "intro": [
+    "This temple stores spells that do many steps at once.",
+    "One spell can call many commands.",
+    "Ancient scripts run as a single act."
+  ],
+  "hints": {
+    "1": [
+      "A rune circle waits for a spell.",
+      "Many steps can be cast as one.",
+      "The temple loves a single, safe act.",
+      "A spell never half-runs."
+    ],
+    "2": [
+      "A script can run Redis commands inside it.",
+      "The whole script runs without a break.",
+      "You can run a script by name.",
+      "Scripts keep steps together."
+    ],
+    "3": [
+      "Try: EVAL \"return redis.call('SET', KEYS[1], ARGV[1])\" 1 <key> <value>",
+      "Try: SCRIPT LOAD <script>",
+      "Try: EVALSHA <sha1> 0"
+    ],
+    "4": [
+      "EVAL \"return 1\" 0",
+      "EVAL \"return redis.call('GET', KEYS[1])\" 1 player_name",
+      "SCRIPT LOAD \"return 42\""
+    ]
+  },
+  "reactions": {
+    "ok": [
+      "The rune circle completes. No break.",
+      "A spell cast in one breath.",
+      "Atomic. The temple is pleased."
+    ],
+    "error": [
+      "That spell has a flaw.",
+      "The temple hums with a warning.",
+      "The script tripped on its own words."
+    ]
+  },
+  "personality": {
+    "curiosity": [
+      "What could a spell do for you?",
+      "One script, many commands. Try it.",
+      "I wonder if it can count for you."
+    ],
+    "humor": [
+      "Spells here are just very bossy scripts.",
+      "EVAL is a spell with a keyboard.",
+      "The temple does not do half-magic."
+    ],
+    "wisdom": [
+      "A script keeps every step safe as one.",
+      "Teach a script once, cast it many times.",
+      "atomic means all or nothing."
+    ],
+    "sternness": [
+      "A spell needs a valid script. No shortcuts.",
+      "The rune will not bend for you.",
+      "Cast it right, or not at all."
+    ]
+  }
+}
