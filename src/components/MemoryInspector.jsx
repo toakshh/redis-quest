@@ -8,10 +8,11 @@ const TYPE_META = {
   list: { label: 'list', badge: 'border-green/40 bg-green/10 text-green', dot: 'bg-green', bar: 'bg-green' },
   set: { label: 'set', badge: 'border-purple/40 bg-purple/10 text-purple', dot: 'bg-purple', bar: 'bg-purple' },
   zset: { label: 'zset', badge: 'border-red/40 bg-red/10 text-red', dot: 'bg-red', bar: 'bg-red' },
+  stream: { label: 'stream', badge: 'border-orange-400/40 bg-orange-400/10 text-orange-400', dot: 'bg-orange-400', bar: 'bg-orange-400' },
 }
 
 // Deterministic ordering for the "type" sort mode.
-const TYPE_RANK = { string: 0, hash: 1, list: 2, set: 3, zset: 4 }
+const TYPE_RANK = { string: 0, hash: 1, list: 2, set: 3, zset: 4, stream: 5 }
 
 const SORTS = [
   { key: 'mem', label: 'MEM' },
@@ -33,6 +34,8 @@ function entrySummary(entry) {
       return `${entry.value.size} ${entry.value.size === 1 ? 'member' : 'members'}`
     case 'zset':
       return `${entry.value.length} ${entry.value.length === 1 ? 'member' : 'members'}`
+    case 'stream':
+      return `${entry.value.length} entries`
     default:
       return ''
   }

@@ -3,6 +3,9 @@ import { registry } from './registry.js'
 import { unknownCommand, errorReply, simpleReply, wrongArity } from './reply.js'
 import { totalMemoryBytes, MEMORY_CONSTANTS } from './datatypes/memory.js'
 import { createRng } from './rng.js'
+import { runEvictionPass } from './eviction.js'
+import { estimateCommandCost, PRE_SIZE_COMMANDS, capturePreSize } from './latency.js'
+import { RedisStream, StreamId, ConsumerGroup } from './datatypes/Stream.js'
 
 // How many executed commands we keep for time-travel debugging.
 export const HISTORY_LIMIT = 500
@@ -64,7 +67,27 @@ export class MockRedisEngine {
       commandsPerMinute: 0,
       startedAt: this.now(),
       _lastCommandTime: this.now(),
+      keyspaceHits: 0,
+      keyspaceMisses: 0,
     }
+
+    // 'noeviction' | 'allkeys-lru' | 'allkeys-random' | 'volatile-lru' |
+    // 'volatile-random' | 'volatile-ttl'. See eviction.js.
+    this.maxmemoryPolicy = 'noeviction'
+    this.stats.keysEvicted = 0
+
+    // Estimated cost (ms) of the most recently executed command. See
+    // latency.js — this is what lets the sim turn an expensive DEL into a
+    // real, felt frame stall while UNLINK stays cheap.
+    this.lastCommandCostMs = 0
+
+    // Ring of { t, hit } records for hitRatio()'s windowed lookback. Trimmed
+    // to its last 2000 entries in _recordCommand so it never grows unbounded.
+    this._hitWindow = []
+    // True only while a READ_INTENT_COMMANDS handler is executing — _get()
+    // consults this so a write's internal lookups (e.g. SET checking for an
+    // existing key) never count as a cache hit/miss.
+    this._readIntent = false
 
     // pub/sub bus (per-db channels share one bus in our mock)
     this.subscribers = new Map() // channel -> Set of connection ids
@@ -100,18 +123,61 @@ export class MockRedisEngine {
   }
 
   // Live entry for a key, applying lazy expiry. Returns null if missing/expired.
+  // Both the missing-key and the just-expired paths count as a miss.
   _get(key) {
     const entry = this.store.get(key)
-    if (!entry) return null
+    if (!entry) {
+      if (this._readIntent) this._recordHit(false)
+      return null
+    }
     if (entry.expiresAt !== null && entry.expiresAt <= this.now()) {
       this.store.delete(key)
       this.stats.keysExpired++
       this._cache.dirty = true
       this.emit('expired', { keys: [key] })
       this.emit('change')
+      if (this._readIntent) this._recordHit(false)
       return null
     }
+    if (this._readIntent) this._recordHit(true)
     return entry
+  }
+
+  _recordHit(hit) {
+    this._hitWindow.push({ t: this.now(), hit })
+    if (hit) this.stats.keyspaceHits++
+    else this.stats.keyspaceMisses++
+  }
+
+  // Windowed hit ratio over the last windowMs of read-intent lookups.
+  // Returns 1 (fully "healthy") when there is no data yet, so a fresh
+  // engine doesn't read as a cache disaster before anything has happened.
+  hitRatio(windowMs = 30000) {
+    const cutoff = this.now() - windowMs
+    let hits = 0
+    let total = 0
+    for (let i = this._hitWindow.length - 1; i >= 0; i--) {
+      if (this._hitWindow[i].t < cutoff) break
+      total++
+      if (this._hitWindow[i].hit) hits++
+    }
+    return total === 0 ? 1 : hits / total
+  }
+
+  // Runs an eviction pass if we're over maxmemoryPolicy's limit. A no-op
+  // under 'noeviction' (memory is simply allowed to exceed the limit — see
+  // OOM handling in CONFIG). Called once per executed command, after the
+  // handler runs, so the *next* command's arriving key finds room.
+  maybeEvict() {
+    if (this.maxmemoryPolicy === 'noeviction') return null
+    if (this.memoryBytes <= this.memoryLimit) return null
+    const result = runEvictionPass(this, this.maxmemoryPolicy)
+    if (result.keys.length > 0) {
+      this.stats.keysEvicted += result.keys.length
+      this.emit('evicted', result)
+      this.emit('change')
+    }
+    return result
   }
 
   // Create or fetch an entry, ready for mutation. If it exists it must be
@@ -224,6 +290,10 @@ export class MockRedisEngine {
     this.stats.commandsPerMinute = this.stats.opsPerSecond * 60
     this.stats.totalCommands++
     this.stats.commandsByType[canonicalName] = (this.stats.commandsByType[canonicalName] || 0) + 1
+
+    if (this._hitWindow.length > 2000) {
+      this._hitWindow.splice(0, this._hitWindow.length - 2000)
+    }
   }
 
   // ---- pub/sub ---------------------------------------------------------
@@ -344,6 +414,12 @@ export class MockRedisEngine {
 
     this._recordCommand(canon)
 
+    // Destructive commands (DEL/UNLINK/FLUSHDB/FLUSHALL) must be sized
+    // BEFORE the handler runs — by the time the cost estimate is computed
+    // below, the handler has already removed what it needs to measure.
+    const preSize = PRE_SIZE_COMMANDS.has(canon) ? capturePreSize(this, canon, args) : null
+
+    this._readIntent = READ_INTENT_COMMANDS.has(canon)
     let reply
     try {
       reply = command(this, args)
@@ -353,11 +429,16 @@ export class MockRedisEngine {
       // eslint-disable-next-line no-console
       console.error('Engine handler error for', args[0], err)
       reply = errorReply(`ERR internal error: ${err.message}`)
+    } finally {
+      this._readIntent = false
     }
     if (reply && reply.type === 'error') this.stats.totalErrors++
+    if (!reply || reply.type !== 'error') this.maybeEvict()
+
+    this.lastCommandCostMs = estimateCommandCost(this, canon, args, reply, preSize)
 
     if (!this._silent) {
-      this.emit('command', { name: canon, args: tokens, reply })
+      this.emit('command', { name: canon, args: tokens, reply, costMs: this.lastCommandCostMs })
     }
 
     return reply
@@ -407,6 +488,7 @@ export class MockRedisEngine {
         : [],
       connectionId: this.connectionId,
       memoryLimit: this.memoryLimit,
+      maxmemoryPolicy: this.maxmemoryPolicy,
     }
   }
 
@@ -435,6 +517,7 @@ export class MockRedisEngine {
     this.scriptCache = new Map(snap.scriptCache ?? [])
     this.subscribers = new Map((snap.subscribers ?? []).map(([ch, conns]) => [ch, new Set(conns)]))
     if (typeof snap.memoryLimit === 'number') this.memoryLimit = snap.memoryLimit
+    if (typeof snap.maxmemoryPolicy === 'string') this.maxmemoryPolicy = snap.maxmemoryPolicy
     this._cache = { memoryBytes: 0, dirty: true }
     return this
   }
@@ -443,16 +526,92 @@ export class MockRedisEngine {
 function serializeEntryValue(value) {
   if (value instanceof Map) return { __t: 'map', v: [...value] }
   if (value instanceof Set) return { __t: 'set', v: [...value] }
+  if (value instanceof RedisStream) return { __t: 'stream', v: serializeStream(value) }
   return value
 }
 
 function deserializeEntryValue(value) {
   if (value && typeof value === 'object' && value.__t === 'map') return new Map(value.v)
   if (value && typeof value === 'object' && value.__t === 'set') return new Set(value.v)
+  if (value && typeof value === 'object' && value.__t === 'stream') return deserializeStream(value.v)
   return value
 }
 
+// A RedisStream holds StreamId instances (not plain strings) in its entries,
+// lastId/maxDeletedId, and every group's lastDeliveredId/PEL — all of that
+// gets flattened to id strings here and reparsed with StreamId.parse() on
+// the way back in, exactly like Map/Set above but one level deeper.
+function serializeStream(stream) {
+  return {
+    entries: stream.entries.map((e) => ({ id: e.id.toString(), fields: [...e.fields] })),
+    lastId: stream.lastId.toString(),
+    maxDeletedId: stream.maxDeletedId.toString(),
+    entriesAdded: stream.entriesAdded,
+    groups: [...stream.groups.entries()].map(([name, group]) => [
+      name,
+      {
+        lastDeliveredId: group.lastDeliveredId.toString(),
+        consumers: [...group.consumers.entries()].map(([cname, c]) => [
+          cname,
+          { name: c.name, seenTime: c.seenTime, pending: [...c.pending] },
+        ]),
+        pel: [...group.pel.entries()].map(([idStr, p]) => [
+          idStr,
+          {
+            id: p.id.toString(),
+            consumer: p.consumer,
+            deliveryTime: p.deliveryTime,
+            deliveryCount: p.deliveryCount,
+          },
+        ]),
+      },
+    ]),
+  }
+}
+
+function deserializeStream(v) {
+  const stream = new RedisStream()
+  stream.entries = v.entries.map((e) => ({ id: StreamId.parse(e.id), fields: new Map(e.fields) }))
+  stream.lastId = StreamId.parse(v.lastId)
+  stream.maxDeletedId = StreamId.parse(v.maxDeletedId)
+  stream.entriesAdded = v.entriesAdded
+  stream.groups = new Map(
+    v.groups.map(([name, g]) => {
+      const group = new ConsumerGroup(name, StreamId.parse(g.lastDeliveredId))
+      group.consumers = new Map(
+        g.consumers.map(([cname, c]) => [
+          cname,
+          { name: c.name, seenTime: c.seenTime, pending: new Set(c.pending) },
+        ])
+      )
+      group.pel = new Map(
+        g.pel.map(([idStr, p]) => [
+          idStr,
+          {
+            id: StreamId.parse(p.id),
+            consumer: p.consumer,
+            deliveryTime: p.deliveryTime,
+            deliveryCount: p.deliveryCount,
+          },
+        ])
+      )
+      return [name, group]
+    })
+  )
+  return stream
+}
+
 const TRANSACTION_CONTROL = new Set(['MULTI', 'EXEC', 'DISCARD', 'WATCH', 'UNWATCH', 'RESET'])
+
+// Commands whose _get() lookups count toward the keyspace hit/miss ratio.
+// A write (SET, DEL, ...) internally checking whether a key exists must
+// never count as a cache hit or miss — only these read-shaped commands do.
+const READ_INTENT_COMMANDS = new Set([
+  'GET', 'MGET', 'GETRANGE', 'STRLEN', 'HGET', 'HMGET', 'HGETALL', 'HKEYS', 'HVALS', 'HLEN',
+  'HEXISTS', 'LRANGE', 'LINDEX', 'LLEN', 'SMEMBERS', 'SISMEMBER', 'SCARD', 'ZSCORE', 'ZRANK',
+  'ZREVRANK', 'ZRANGE', 'ZREVRANGE', 'ZCARD', 'EXISTS', 'TYPE', 'TTL', 'PTTL', 'XRANGE',
+  'XREVRANGE', 'XLEN', 'XREAD', 'XREADGROUP',
+])
 
 // Redis arity: positive = exact arg count (including command name),
 // negative = minimum count. Returns an error reply or null.

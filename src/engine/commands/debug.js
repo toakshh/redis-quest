@@ -10,6 +10,7 @@ import {
   syntaxError,
   intValue,
 } from '../reply.js'
+import { EVICTION_POLICIES } from '../eviction.js'
 
 // Debug commands
 export const DEBUG = cmd({
@@ -566,7 +567,7 @@ export const CONFIG = cmd({
     const pattern = args[2] || '*'
     const configs = {
       'maxmemory': engine.memoryLimit,
-      'maxmemory-policy': 'noeviction',
+      'maxmemory-policy': engine.maxmemoryPolicy,
       'save': '900 1 300 10 60 10000',
       'appendonly': 'no',
       'requirepass': '',
@@ -614,6 +615,11 @@ export const CONFIG = cmd({
       const bytes = parseMemory(value)
       if (bytes === null) return errorReply('ERR invalid maxmemory value')
       engine.memoryLimit = bytes
+    } else if (key === 'maxmemory-policy') {
+      if (!EVICTION_POLICIES.includes(value)) {
+        return errorReply(`ERR Invalid argument '${value}' for CONFIG SET 'maxmemory-policy'`)
+      }
+      engine.maxmemoryPolicy = value
     }
     // Other settings would be applied here
 

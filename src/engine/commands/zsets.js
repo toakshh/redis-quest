@@ -3,6 +3,7 @@ import {
   integerReply,
   bulkReply,
   nilReply,
+  blockedReply,
   arrayReply,
   emptyArrayReply,
   errorReply,
@@ -771,8 +772,9 @@ export const BZPOPMIN = cmd({
   if (timeout < 0) return errorReply('ERR timeout is out of range')
   if (keys.length === 0) return syntaxError()
 
-  // In our mock engine, we just do a non-blocking check since we don't
-  // implement actual blocking. This mimics the behavior when no elements exist.
+  // Our sim is synchronous — we can't truly block. If nothing is available
+  // we return a 'blocked' reply (see reply.js) instead of nil, so the sim
+  // layer can render the player as physically locked in place.
   for (const key of keys) {
     const entry = engine._get(key)
     if (entry && entry.type === 'zset' && entry.value.length > 0) {
@@ -788,7 +790,8 @@ export const BZPOPMIN = cmd({
       return wrongType()
     }
   }
-  return nilReply()
+  const timeoutAt = timeout === 0 ? null : engine.now() + timeout * 1000
+  return blockedReply(keys, timeoutAt)
 })
 
 export const BZPOPMAX = cmd({
@@ -805,8 +808,9 @@ export const BZPOPMAX = cmd({
   if (timeout < 0) return errorReply('ERR timeout is out of range')
   if (keys.length === 0) return syntaxError()
 
-  // In our mock engine, we just do a non-blocking check since we don't
-  // implement actual blocking. This mimics the behavior when no elements exist.
+  // Our sim is synchronous — we can't truly block. If nothing is available
+  // we return a 'blocked' reply (see reply.js) instead of nil, so the sim
+  // layer can render the player as physically locked in place.
   for (const key of keys) {
     const entry = engine._get(key)
     if (entry && entry.type === 'zset' && entry.value.length > 0) {
@@ -821,5 +825,6 @@ export const BZPOPMAX = cmd({
       return arrayReply(out)
     } else if (entry && entry.type !== 'zset') return wrongType()
   }
-  return nilReply()
+  const timeoutAt = timeout === 0 ? null : engine.now() + timeout * 1000
+  return blockedReply(keys, timeoutAt)
 })
