@@ -107,8 +107,14 @@ which is exactly how a `data-testid` on a <group> shipped a white-screen crash.
 Known gaps, deliberately not closed here:
 - Chapter beats in content/chapters/ch1/beats/index.js have empty execute()
   bodies; the Director/StoryGraph run but drive no scripted events yet.
-- No audio is wired into the 3D mode (AudioDirector exists, unused).
-- ScareDirector/FlinchMeter exist and are tested, but nothing triggers scares.
 - view/EnemyInstances.jsx, view/level/LevelLoader.jsx, view/player/*Rig.jsx and
   view/hud/{CardComposer,DebriefCard,ReceiptLine}.jsx remain unused by the
   live scene; they are the task-card versions, kept for the next pass.
+
+## Horror SFX & Scare System Integration
+
+Procedural horror audio and Scare/Director systems are now integrated into the 3D gameplay loop:
+- `ScareSystem` executes in the main sim loop via `createGameWorld.js` to manage scare tension, cooldowns, select active scares using `ScareDirector`, and apply fairness rules using `evaluateFairness` based on input commands and scare history.
+- `ScareAudio` reads `world.scareEvents` and triggers procedural scare stingers.
+- Master gain transition states like `audioDrop` are optimized in `ScareAudio` using `lastAudioDropRef` to avoid busy-scheduling nodes every frame.
+- Headless testing mocks in `ScareAudio.test.jsx` are updated to support the revised schedule testing.

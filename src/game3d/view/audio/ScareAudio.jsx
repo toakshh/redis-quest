@@ -8,6 +8,7 @@ export function ScareAudio() {
   const { world } = useSim()
   const tickRef = useRef(-1)
   const directorRef = useRef(null)
+  const lastAudioDropRef = useRef(null)
   
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -38,16 +39,11 @@ export function ScareAudio() {
     }
 
     // Audio drop logic
-    if (world.audioDrop) {
-      if (dir.masterGain.gain.value > 0.01) {
-        dir.masterGain.gain.cancelScheduledValues(dir.ctx.currentTime)
-        dir.masterGain.gain.setTargetAtTime(0, dir.ctx.currentTime, 0.1) // Quick fade out
-      }
-    } else {
-      if (dir.masterGain.gain.value < 0.99) {
-        dir.masterGain.gain.cancelScheduledValues(dir.ctx.currentTime)
-        dir.masterGain.gain.setTargetAtTime(1, dir.ctx.currentTime, 0.1) // Quick fade in
-      }
+    if (world.audioDrop !== lastAudioDropRef.current) {
+      lastAudioDropRef.current = world.audioDrop
+      const targetGain = world.audioDrop ? 0 : 1
+      dir.masterGain.gain.cancelScheduledValues(dir.ctx.currentTime)
+      dir.masterGain.gain.setTargetAtTime(targetGain, dir.ctx.currentTime, 0.1)
     }
 
     // You could route enemy presence to duckMusic or updateVoiceDegradation here.

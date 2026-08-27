@@ -18,9 +18,17 @@ class MockAudioParam {
     this.value = val
     this.scheduledCalls = []
   }
-  cancelScheduledValues = vi.fn()
-  setTargetAtTime(target, time, ratio) { this.value = target }
-  setValueAtTime(val, time) { this.value = val }
+  cancelScheduledValues = vi.fn((time) => {
+    this.scheduledCalls.push(['cancel', time])
+  })
+  setTargetAtTime = vi.fn((target, time, ratio) => {
+    this.value = target
+    this.scheduledCalls.push(['setTarget', target, time, ratio])
+  })
+  setValueAtTime = vi.fn((val, time) => {
+    this.value = val
+    this.scheduledCalls.push(['set', val, time])
+  })
   exponentialRampToValueAtTime = vi.fn()
   linearRampToValueAtTime = vi.fn()
 }
@@ -137,6 +145,72 @@ describe('ScareAudio', () => {
     expect(world.scareEvents).toBeDefined()
     
     // Cleanup
+    renderer.unmount()
+    delete globalThis.window
+  })
+
+  it('reacts to audio drop transitions and avoids busy-updating every frame', async () => {
+    const mockCtx = new MockAudioContext()
+    let masterGainNode = null
+    const originalCreateGain = mockCtx.createGain
+
+    // Intercept creation of masterGainNode
+    mockCtx.createGain = function() {
+      const node = originalCreateGain.call(mockCtx)
+      if (!masterGainNode) {
+        masterGainNode = node
+      }
+      return node
+    }
+
+    mockCtx.close = vi.fn()
+    globalThis.window = {
+      AudioContext: class {
+        constructor() {
+          return mockCtx
+        }
+      }
+    }
+
+    const world = {
+      tick: 1,
+      scareEvents: [],
+      audioDrop: false,
+      contactWeight: 0
+    }
+
+    const renderer = await ReactThreeTestRenderer.create(
+      <SimProvider world={world}>
+        <ScareAudio />
+      </SimProvider>
+    )
+
+    // First frame initializes transition (sets gain to 1)
+    await renderer.advanceFrames(1, 0.016)
+    
+    expect(masterGainNode).not.toBeNull()
+    const activeCalls = masterGainNode.gain.scheduledCalls
+    expect(activeCalls.length).toBe(2)
+    expect(activeCalls[0]).toEqual(['cancel', 0])
+    expect(activeCalls[1]).toEqual(['setTarget', 1, 0, 0.1])
+
+    // Advancing frame with no state change should NOT generate new schedules
+    activeCalls.length = 0
+    await renderer.advanceFrames(5, 0.016)
+    expect(activeCalls.length).toBe(0)
+
+    // Changing audioDrop to true should schedule transition to 0
+    world.audioDrop = true
+    await renderer.advanceFrames(1, 0.016)
+    expect(activeCalls.length).toBe(2) // cancel + setTarget
+    expect(activeCalls[0]).toEqual(['cancel', 0])
+    expect(activeCalls[1]).toEqual(['setTarget', 0, 0, 0.1])
+
+    // Subsequent frame should not call setTarget again
+    activeCalls.length = 0
+    await renderer.advanceFrames(3, 0.016)
+    expect(activeCalls.length).toBe(0)
+
     renderer.unmount()
     delete globalThis.window
   })

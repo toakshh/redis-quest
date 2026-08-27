@@ -16,6 +16,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Uses Web Audio API for SFX and procedural chiptune BGM.
 - Subscribes to `gameStore` for audio settings (toggles, volume).
 - Initialized in `App.jsx`.
+- Note: 3D Mode manages its own 3D audio via `src/game3d/audio/AudioDirector.js` and `ProceduralSfx.js` rather than `SoundEngine.js`.
 
 ## Inventory & Chest System
 - Inventory modal in `src/components/InventoryModal.jsx` (toggled via `I` hotkey or HUD button).
@@ -54,5 +55,6 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Entry chain: `index.js` → `view/Game3DRoot.jsx` → `view/Scene.jsx`. The whole game is assembled headlessly by `sim/createGameWorld.js`; the view only reads it.
 - Level geometry is generated from boxes in `content/chapters/ch1/level.js` — no `.glb` asset exists or is needed. The sim collides against the *same* collider list the view draws.
 - Physics is `sim/systems/CollisionSystem.js` (cylinder-vs-AABB), deliberately not Rapier: the determinism gate needs bit-identical replays, which a WASM solver with internal state cannot give.
+- 3D audio and scare stingers are processed via `view/audio/ScareAudio.jsx`. Audio node state updates must check last-state reference flags to avoid busy-scheduling every frame.
 - Never put `data-testid` on a three.js element — R3F forwards it onto the object as `data.testid` and throws. Assert the scene with `@react-three/test-renderer` (see `__tests__/playable.test.jsx`).
 - Three.js r171 uses physical light units: point/spot intensities are in the hundreds, not single digits.

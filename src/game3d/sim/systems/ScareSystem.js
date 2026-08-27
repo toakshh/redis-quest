@@ -1,6 +1,7 @@
 import { SYSTEM_ORDER } from '../SimWorld.js'
 import { createScareDirector } from '../horror/ScareDirector.js'
 import { SCARE_TYPES } from '../horror/scareTypes.js'
+import { evaluateFairness } from '../horror/scareFairness.js'
 
 export function createScareSystem() {
   let scareDirector = null
@@ -42,9 +43,28 @@ export function createScareSystem() {
       // If in debrief, pass 'Debrief' as tension
       const finalTension = world.objectivesComplete ? 'Debrief' : tension
 
-      const scare = scareDirector.update(clockMs, finalTension, SCARE_TYPES, contextFits)
+      const checkFairness = (candidate, timeMs) => {
+        const timeSincePreciseInput = world.lastCommandMs ? (timeMs - world.lastCommandMs) : 10000
+        const context = {
+          timeSincePreciseInput,
+          isPressureTest: false,
+          recentScares: world.recentScares || [],
+          inDebrief: world.objectivesComplete
+        }
+        return evaluateFairness(candidate, context)
+      }
+
+      const scare = scareDirector.update(clockMs, finalTension, SCARE_TYPES, contextFits, checkFairness)
       
       if (scare) {
+        if (!world.recentScares) {
+          world.recentScares = []
+        }
+        world.recentScares.push(scare.id)
+        if (world.recentScares.length > 3) {
+          world.recentScares.shift()
+        }
+
         world.scareEvents.push({
           type: 'scare',
           scareDef: scare,

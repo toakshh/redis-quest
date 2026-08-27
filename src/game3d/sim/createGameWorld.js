@@ -85,6 +85,11 @@ export function createGameWorld({ seed = 'protocol-zero', level = CH1_LEVEL, now
     world.lastDamageMs = world.clock()
   })
 
+  // Track command times for the ScareSystem / Fairness rules
+  world.bus.on('sim:commandResult', () => {
+    world.lastCommandMs = world.clock()
+  })
+
   // --- Entities.
   const spawn = level.spawnPoints.find((s) => s.id === 'player_start')
   const start = spawn ? spawn.position : [0, 1, 0]
