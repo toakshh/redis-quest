@@ -41,9 +41,61 @@ export function createMovementSystem() {
         // 2. Gravity on the vertical axis.
         velY[id] += gravity * dt
 
-        // 3. Ground friction on the horizontal plane.
-        velX[id] *= keep
-        velZ[id] *= keep
+        if (id === world.playerId) {
+          const k = world.playerInputs || { fwd: false, back: false, left: false, right: false, sprint: false }
+          const yaw = world.playerYaw ?? 0
+          const dead = world.playerHealth01 <= 0
+
+          let ix = 0
+          let iz = 0
+          if (!dead) {
+            if (k.fwd) iz -= 1
+            if (k.back) iz += 1
+            if (k.left) ix -= 1
+            if (k.right) ix += 1
+          }
+
+          const sin = Math.sin(yaw)
+          const cos = Math.cos(yaw)
+
+          let moveX = ix * cos - iz * sin
+          let moveZ = ix * sin + iz * cos
+          const moveLen = Math.hypot(moveX, moveZ)
+          if (moveLen > 1) {
+            moveX /= moveLen
+            moveZ /= moveLen
+          }
+          const hasInput = moveLen > 0.01
+
+          const maxSpeed = k.sprint ? FEEL.move.sprintSpeed : FEEL.move.walkSpeed
+          const isGrounded = world.grounded && world.grounded[id] === 1
+          const accel = isGrounded ? FEEL.move.groundAccel : FEEL.move.groundAccel * FEEL.move.airControl
+          const pFriction = isGrounded ? FEEL.move.groundFriction : 0
+
+          // Apply player-specific friction
+          const currentSpeed = Math.hypot(velX[id], velZ[id])
+          if (currentSpeed > 0) {
+            const drop = currentSpeed * pFriction * dt
+            const newSpeed = Math.max(currentSpeed - drop, 0)
+            velX[id] *= (newSpeed / currentSpeed)
+            velZ[id] *= (newSpeed / currentSpeed)
+          }
+
+          // Apply player-specific acceleration
+          if (hasInput) {
+            const projVel = velX[id] * moveX + velZ[id] * moveZ
+            const addSpeed = maxSpeed - projVel
+            if (addSpeed > 0) {
+              const accelAmount = Math.min(addSpeed, accel * dt * maxSpeed)
+              velX[id] += moveX * accelAmount
+              velZ[id] += moveZ * accelAmount
+            }
+          }
+        } else {
+          // 3. Ground friction on the horizontal plane.
+          velX[id] *= keep
+          velZ[id] *= keep
+        }
 
         // 4. Integrate position.
         posX[id] += velX[id] * dt

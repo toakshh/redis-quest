@@ -47,7 +47,6 @@ export default function PlayerController({ active, locked, onFire }) {
   const look = useRef({ yaw: initialYaw(world), pitch: 0 })
   const bobPhase = useRef(0)
   const bobAmp = useRef(0)
-  const hVel = useRef({ x: 0, z: 0 })
   const fireTimer = useRef(0)
   const wantFire = useRef(false)
   // Scratch for spatial queries — allocated once, never per frame.
@@ -129,66 +128,12 @@ export default function PlayerController({ active, locked, onFire }) {
     const dead = world.playerHealth01 <= 0
     const k = keys.current
 
-    // --- Horizontal movement, relative to where the player is looking.
-    let ix = 0
-    let iz = 0
-    if (!dead) {
-      if (k.fwd) iz -= 1
-      if (k.back) iz += 1
-      if (k.left) ix -= 1
-      if (k.right) ix += 1
-    }
-
-    const yaw = look.current.yaw
-    const sin = Math.sin(yaw)
-    const cos = Math.cos(yaw)
-
-    let moveX = ix * cos - iz * sin
-    let moveZ = ix * sin + iz * cos
-    const moveLen = Math.hypot(moveX, moveZ)
-    if (moveLen > 1) {
-      moveX /= moveLen
-      moveZ /= moveLen
-    }
-    const hasInput = moveLen > 0.01
+    // Synchronize inputs and yaw to the simulation world
+    world.playerInputs = k
+    world.playerYaw = look.current.yaw
 
     const maxSpeed = k.sprint ? FEEL.move.sprintSpeed : FEEL.move.walkSpeed
-    const isGrounded = world.grounded && world.grounded[id] === 1
-    const accel = isGrounded ? FEEL.move.groundAccel : FEEL.move.groundAccel * FEEL.move.airControl
-    const friction = isGrounded ? FEEL.move.groundFriction : 0
-
-    // Apply friction to our local tracking velocity
-    const currentSpeed = Math.hypot(hVel.current.x, hVel.current.z)
-    if (currentSpeed > 0) {
-      const drop = currentSpeed * friction * dt
-      const newSpeed = Math.max(currentSpeed - drop, 0)
-      hVel.current.x *= (newSpeed / currentSpeed)
-      hVel.current.z *= (newSpeed / currentSpeed)
-    }
-
-    // Apply acceleration
-    if (hasInput) {
-      const projVel = hVel.current.x * moveX + hVel.current.z * moveZ
-      const addSpeed = maxSpeed - projVel
-      if (addSpeed > 0) {
-        const accelAmount = Math.min(addSpeed, accel * dt * maxSpeed)
-        hVel.current.x += moveX * accelAmount
-        hVel.current.z += moveZ * accelAmount
-      }
-    }
-
-    // Apply positional delta
-    e.posX[id] += hVel.current.x * dt
-    e.posZ[id] += hVel.current.z * dt
-
-    const actualSpeed = Math.hypot(hVel.current.x, hVel.current.z)
-    if (actualSpeed > 0.01) {
-      bobPhase.current += dt * FEEL.camera.headBobHz * Math.PI * 2 * (k.sprint ? 1.6 : 1) * (actualSpeed / maxSpeed)
-    }
-    
-    // Smooth bobbing amplitude decay instead of instant snap
-    const targetAmp = actualSpeed > 0.01 ? FEEL.camera.headBobAmplitude * Math.min(1, actualSpeed / maxSpeed) : 0
-    bobAmp.current += (targetAmp - bobAmp.current) * Math.min(1, dt * 10)
+    const hasInput = (k.fwd || k.back || k.left || k.right) && !dead
 
     // --- Jump. Only from the ground; CollisionSystem owns `grounded`.
     if (!dead && k.jump && world.grounded && world.grounded[id] === 1) {
@@ -203,7 +148,22 @@ export default function PlayerController({ active, locked, onFire }) {
       if (onFire) onFire()
     }
 
-    // --- Camera follows the simulated body, never the other way round.
+    // --- Head-bobbing based on actual physical positional delta (fixes finding 5)
+    const isGrounded = world.grounded && world.grounded[id] === 1
+    const dx = e.posX[id] - e.prevX[id]
+    const dz = e.posZ[id] - e.prevZ[id]
+    const physicalSpeed = dt > 0.0001 ? Math.hypot(dx, dz) / dt : 0
+    const bobbingSpeed = isGrounded ? physicalSpeed : 0
+
+    if (bobbingSpeed > 0.01) {
+      bobPhase.current += dt * FEEL.camera.headBobHz * Math.PI * 2 * (k.sprint ? 1.6 : 1) * (bobbingSpeed / maxSpeed)
+    }
+    
+    // Smooth bobbing amplitude decay instead of instant snap
+    const targetAmp = bobbingSpeed > 0.01 ? FEEL.camera.headBobAmplitude * Math.min(1, bobbingSpeed / maxSpeed) : 0
+    bobAmp.current += (targetAmp - bobAmp.current) * Math.min(1, dt * 10)
+
+    // --- Camera follows the simulated body, never speculative/un-collided positions (fixes finding 4)
     const bob = Math.sin(bobPhase.current) * bobAmp.current
     camera.rotation.order = 'YXZ'
     camera.rotation.set(look.current.pitch, look.current.yaw, 0)

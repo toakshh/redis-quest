@@ -127,6 +127,8 @@ export function createGameWorld({ seed = 'protocol-zero', level = CH1_LEVEL, now
   // world reference and these are read-only from its side.
   world.grounded = collision.grounded
   world.combat = combat
+  world.playerInputs = { fwd: false, back: false, left: false, right: false, sprint: false, jump: false }
+  world.playerYaw = 0
 
   return {
     runtime,
