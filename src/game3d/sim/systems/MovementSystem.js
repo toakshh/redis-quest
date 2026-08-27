@@ -5,7 +5,8 @@
 //   1. Save the current position into prevX/Y/Z (the view interpolates
 //      between prev and current for smooth rendering between fixed ticks).
 //   2. Apply gravity to vertical velocity.
-//   3. Apply ground friction to horizontal velocity (exponential decay).
+//   3. For the player: apply yaw and key inputs to update velocity via player-specific
+//      friction and acceleration. For other entities: apply standard ground friction.
 //   4. Integrate: position += velocity * dt.
 
 import { FEEL } from '../../config/feel.js'

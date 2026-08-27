@@ -8,11 +8,9 @@ import { FLAGS } from '../../sim/entity/EntityStore.js'
 // The player's hands on the world: pointer-lock mouse look, WASD, sprint,
 // jump, and a hitscan weapon.
 //
-// Horizontal motion is applied as a direct position delta rather than through
-// velX/velZ. MovementSystem applies ground friction to velocity every tick,
-// which is right for AI steering but would make player input feel like ice.
-// Vertical motion still goes through velY so gravity, jumping and the
-// CollisionSystem's swept landing all behave normally.
+// Keyboard inputs and yaw are synchronized to the simulation. MovementSystem
+// accelerates and damps the player's horizontal/vertical velocity inside the
+// simulation tick, and camera/head-bobbing follow the physical positions.
 
 const KEY_BINDS = {
   KeyW: 'fwd', ArrowUp: 'fwd',
@@ -158,7 +156,7 @@ export default function PlayerController({ active, locked, onFire }) {
     if (bobbingSpeed > 0.01) {
       bobPhase.current += dt * FEEL.camera.headBobHz * Math.PI * 2 * (k.sprint ? 1.6 : 1) * (bobbingSpeed / maxSpeed)
     }
-    
+
     // Smooth bobbing amplitude decay instead of instant snap
     const targetAmp = bobbingSpeed > 0.01 ? FEEL.camera.headBobAmplitude * Math.min(1, bobbingSpeed / maxSpeed) : 0
     bobAmp.current += (targetAmp - bobAmp.current) * Math.min(1, dt * 10)
