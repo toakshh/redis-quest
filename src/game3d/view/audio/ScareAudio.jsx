@@ -10,8 +10,7 @@ export function ScareAudio() {
   const directorRef = useRef(null)
   
   useEffect(() => {
-    // Audio contexts need a user gesture to start in most browsers, 
-    // but the 3D game begins with a "click to play" which is sufficient.
+    if (typeof window === 'undefined') return
     const AC = window.AudioContext || window.webkitAudioContext
     if (!AC) return // For test environments without AudioContext
 

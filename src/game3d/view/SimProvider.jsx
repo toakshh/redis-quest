@@ -15,6 +15,9 @@ export function SimProvider({ runtime, world, children }) {
   const value = useMemo(() => ({ runtime, world }), [runtime, world])
 
   useEffect(() => {
+    if (typeof requestAnimationFrame === 'undefined' || !world || typeof world.step !== 'function') {
+      return
+    }
     let frameId
     let lastTime = performance.now()
 

@@ -33,14 +33,7 @@ const DEFAULTS = {
 export function createAISystem(opts = {}) {
   const cfg = { ...DEFAULTS, ...opts }
 
-  // Reusable filter state so queryNearest's predicate allocates nothing.
-  let selfId = -1
-  let hostileArr = null
-  function preyFilter(id) {
-    // A valid target is not the searcher and is not itself hostile — the
-    // player and other prey are hostile-flag-free.
-    return id !== selfId && (hostileArr[id] & FLAGS.HOSTILE) === 0
-  }
+  const preyIds = new Int32Array(400)
 
   return {
     name: 'ai',
@@ -48,7 +41,14 @@ export function createAISystem(opts = {}) {
     update(world, dt) {
       const e = world.entities
       const { alive, posX, posZ, velX, velZ, health, maxHealth, state, stateTime, flags } = e
-      hostileArr = flags
+
+      // Gather non-hostile entities (preys)
+      let preyCount = 0
+      for (let id = 0; id < e.capacity; id++) {
+        if (alive[id] === 1 && (flags[id] & FLAGS.HOSTILE) === 0) {
+          preyIds[preyCount++] = id
+        }
+      }
 
       for (let id = 0; id < e.capacity; id++) {
         if (alive[id] === 0) continue
@@ -68,8 +68,21 @@ export function createAISystem(opts = {}) {
 
         if (next !== AI_STATE.DYING) {
           const hurt = maxHealth[id] > 0 && health[id] / maxHealth[id] <= cfg.fleeHealthFraction
-          selfId = id
-          const target = world.hash.queryNearest(posX[id], posZ[id], cfg.alertRadius, preyFilter)
+          
+          // Find nearest prey directly (logical equivalent to queryNearest)
+          let target = -1
+          let bestD2 = cfg.alertRadius * cfg.alertRadius
+          for (let pIdx = 0; pIdx < preyCount; pIdx++) {
+            const pid = preyIds[pIdx]
+            if (pid === id) continue
+            const dx = posX[pid] - posX[id]
+            const dz = posZ[pid] - posZ[id]
+            const d2 = dx * dx + dz * dz
+            if (d2 <= bestD2) {
+              bestD2 = d2
+              target = pid
+            }
+          }
 
           if (hurt) {
             next = AI_STATE.FLEE
