@@ -11,6 +11,7 @@ const HUD_HZ = 10
 function useHudSnapshot(world) {
   const [snap, setSnap] = useState(() => readSnapshot(world))
   useEffect(() => {
+    setSnap(readSnapshot(world))
     const t = setInterval(() => setSnap(readSnapshot(world)), 1000 / HUD_HZ)
     return () => clearInterval(t)
   }, [world])

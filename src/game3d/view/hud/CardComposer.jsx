@@ -1,25 +1,43 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { FEEL } from '../../config/feel.js'
 
 export default function CardComposer({ world, onFire }) {
   const [isOpen, setIsOpen] = useState(false)
   const [commandTokens, setCommandTokens] = useState(['SET', 'key', 'value']) // Dummy default for testing interaction
 
+  const onFireRef = useRef(onFire)
+  onFireRef.current = onFire
+  const commandTokensRef = useRef(commandTokens)
+  commandTokensRef.current = commandTokens
+
+  useEffect(() => {
+    if (world) {
+      if (isOpen) {
+        world.timeScale = FEEL.ui.cardComposerSlowFactor
+      } else {
+        world.timeScale = 1
+      }
+    }
+    return () => {
+      if (world) {
+        world.timeScale = 1
+      }
+    }
+  }, [world, isOpen])
+
   useEffect(() => {
     function handleMouseDown(e) {
       if (e.button === 2) { // RMB
         setIsOpen(true)
-        if (world) {
-          world.timeScale = FEEL.ui.cardComposerSlowFactor
-        }
       }
     }
 
     function handleMouseUp(e) {
       if (e.button === 2) { // RMB
         if (isOpen) {
-          if (world) world.timeScale = 1
-          if (onFire) onFire(commandTokens.join(' '))
+          if (onFireRef.current) {
+            onFireRef.current(commandTokensRef.current.join(' '))
+          }
         }
         setIsOpen(false)
       }
@@ -38,9 +56,8 @@ export default function CardComposer({ world, onFire }) {
       window.removeEventListener('mousedown', handleMouseDown)
       window.removeEventListener('mouseup', handleMouseUp)
       window.removeEventListener('contextmenu', handleContextMenu)
-      if (world && isOpen) world.timeScale = 1
     }
-  }, [world, isOpen, onFire, commandTokens])
+  }, [isOpen])
 
   if (!isOpen) return null
 
