@@ -1,0 +1,69 @@
+{
+  "region": "set-caverns",
+  "name": "Set Caverns",
+  "intro": [
+    "Crystals here are one of a kind. No copies.",
+    "In these caves, each thing appears once.",
+    "Sets hold unique things. Nothing repeats."
+  ],
+  "hints": {
+    "1": [
+      "Two crystals that look the same... refuse to stack.",
+      "The cave keeps only one of each.",
+      "Every member here is a first.",
+      "Add a thing twice and see."
+    ],
+    "2": [
+      "A set is a collection with no repeats.",
+      "You add members to a set.",
+      "You check if a set holds a thing.",
+      "Sets never store a thing twice."
+    ],
+    "3": [
+      "Try: SADD <key> <member>",
+      "Try: SISMEMBER <key> <member>",
+      "Try: SMEMBERS <key>",
+      "Try: SCARD <key>"
+    ],
+    "4": [
+      "SADD party \"Mage\"",
+      "SISMEMBER party \"Mage\"",
+      "SMEMBERS party",
+      "SCARD party"
+    ]
+  },
+  "reactions": {
+    "ok": [
+      "A unique crystal joins the cluster.",
+      "No copies here. That one fits.",
+      "The cave accepts a new member."
+    ],
+    "error": [
+      "That one is already here. Sets say no to copies.",
+      "The cave hums. Not that.",
+      "No room for repeats."
+    ]
+  },
+  "personality": {
+    "curiosity": [
+      "Try adding the same member twice.",
+      "I wonder what your set holds now.",
+      "What belongs in your party?"
+    ],
+    "humor": [
+      "Two of the same is just one with an ego.",
+      "Sets are the world's best bouncers.",
+      "This cave has no storage for duplicates."
+    ],
+    "wisdom": [
+      "Uniqueness is the rule of the cave.",
+      "Counts are the whole power of a set.",
+      "Check before you add. Or just add."
+    ],
+    "sternness": [
+      "I told you twice. Sets reject copies.",
+      "One member, one slot. Always.",
+      "Do not test the cave's patience."
+    ]
+  }
+}
