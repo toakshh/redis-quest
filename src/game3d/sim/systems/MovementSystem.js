@@ -58,8 +58,8 @@ export function createMovementSystem() {
           const sin = Math.sin(yaw)
           const cos = Math.cos(yaw)
 
-          let moveX = ix * cos - iz * sin
-          let moveZ = ix * sin + iz * cos
+          let moveX = ix * cos + iz * sin
+          let moveZ = -ix * sin + iz * cos
           const moveLen = Math.hypot(moveX, moveZ)
           if (moveLen > 1) {
             moveX /= moveLen
